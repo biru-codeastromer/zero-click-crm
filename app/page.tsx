@@ -26,6 +26,11 @@ export default function Home() {
   const [crmEntries, setCrmEntries] = useState<CrmEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true); // For initial load
 
+  // --- NEW STATE FOR EMAIL ---
+  const [emailBody, setEmailBody] = useState("");
+  const [isProcessingEmail, setIsProcessingEmail] = useState(false);
+  // ---------------------------
+
   const recognitionRef = useRef<any>(null);
 
   // 3. LOAD DATA FROM OUR "DATABASE" (BigQuery via API) ON STARTUP
@@ -157,6 +162,40 @@ export default function Home() {
     setIsSearching(false);
   };
 
+  // 6. --- NEW "EMAIL INGESTION" LOGIC ---
+  const processEmail = async () => {
+    if (!emailBody.trim()) {
+      alert("Please paste an email body first.");
+      return;
+    }
+    
+    setIsProcessingEmail(true);
+    try {
+      const response = await fetch("/api/ingest-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailBody: emailBody }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(`API Error: ${err.details || err.error}`);
+      }
+
+      const newEntry: CrmEntry = await response.json();
+      
+      // Add the new entry to the top of our list
+      setCrmEntries((prevEntries) => [newEntry, ...prevEntries]);
+      setEmailBody(""); // Clear textbox after success
+
+    } catch (error) {
+      console.error("Error processing email:", error);
+      alert(`Error: ${error}`);
+    }
+    setIsProcessingEmail(false);
+  };
+  // ------------------------------------
+
   // Helper to format BigQuery values
   const formatValue = (value: any) => {
     if (value && typeof value === 'object' && value.value) { 
@@ -182,23 +221,44 @@ export default function Home() {
       {/* --- RECORDING BUTTON --- */}
       <button
         onClick={toggleRecording}
-        disabled={isProcessing}
+        disabled={isProcessing || isProcessingEmail}
         className={`px-12 py-6 rounded-full text-2xl font-semibold text-white transition-all
-          ${isProcessing ? "bg-gray-500" : ""}
+          ${(isProcessing || isProcessingEmail) ? "bg-gray-500" : ""}
           ${!isProcessing && isRecording ? "bg-red-600 hover:bg-red-700 animate-pulse" : ""}
-          ${!isProcessing && !isRecording ? "bg-blue-600 hover:bg-blue-700" : ""}
+          ${!isProcessing && !isRecording && !isProcessingEmail ? "bg-blue-600 hover:bg-blue-700" : ""}
         `}
       >
         {isProcessing
-          ? "🧠 Analyzing..."
+          ? "🧠 Analyzing Voice..."
           : isRecording
           ? "Stop Recording"
           : "🎙️ Start Voice Memo"}
       </button>
 
+      {/* --- NEW: EMAIL INGESTION UI --- */}
+      <div className="w-full max-w-4xl mt-12">
+        <p className="text-gray-400 mb-2">
+          ...or paste an email body to ingest:
+        </p>
+        <textarea
+          value={emailBody}
+          onChange={(e) => setEmailBody(e.target.value)}
+          placeholder="Paste a raw email here... (e.g., 'From: client@example.com... Subject: Deal... Hi Birajit, We are interested in the ₹80,000 deal...')"
+          className="w-full min-h-[150px] bg-gray-800 p-4 rounded-md border border-gray-700 text-gray-300"
+        />
+        <button
+          onClick={processEmail}
+          disabled={isProcessingEmail || isRecording || isProcessing}
+          className="px-12 py-4 mt-4 rounded-md text-xl font-semibold text-white bg-green-600 hover:bg-green-700 transition-all disabled:bg-gray-500"
+        >
+          {isProcessingEmail ? "🧠 Analyzing Email..." : "📧 Process Email"}
+        </button>
+      </div>
+      {/* --- END OF NEW UI --- */}
+
       {/* --- TRANSCRIPT BOX --- */}
       <div className="w-full max-w-4xl mt-8">
-        <p className="text-gray-400">Transcript:</p>
+        <p className="text-gray-400">Live Transcript:</p>
         <div className="w-full min-h-[100px] bg-gray-800 p-4 rounded-md border border-gray-700 text-gray-300">
           {transcript || (
             <span className="text-gray-500">

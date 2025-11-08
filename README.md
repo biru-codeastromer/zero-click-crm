@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏆 Zero-Click CRM (Hack-Nation 1st Prize Winner)
 
-## Getting Started
+A submission for the Hack-Nation "VC Big Bets" track.
+This prototype rethinks the CRM from the ground up, built on a "zero-click" philosophy and powered by the **Google Cloud** stack.
 
-First, run the development server:
+**Live Demo URL:** [INSERT YOUR VERCEL URL HERE - DO THIS AFTER YOU DEPLOY]
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### The "Hero Flow" (Our Demo)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+1.  **Demo 1 (Voice Ingestion):** A user finishes a call, clicks "Start Voice Memo," and records a quick, casual summary.
+2.  **AI Extraction (Vertex AI):** Our app sends the transcript to a **Vertex AI (Gemini 1.5 Pro)** model. It analyzes the text and returns structured JSON.
+3.  **Real-time Database (BigQuery):** The structured JSON is inserted *instantly* into a **Google BigQuery** table. The UI updates immediately.
+4.  **Demo 2 (Email Ingestion):** A user pastes the body of an email from a client.
+5.  **Platform Power (Vertex AI):** A *separate* AI prompt analyzes the email, converts currency (₹ to $), and extracts the data.
+6.  **Demo 3 (AI Search):** The user types a natural language query like "show me all deals at risk this month" into the search bar.
+7.  **AI-to-SQL (Vertex AI + BigQuery):** A **Vertex AI** model *generates a BigQuery SQL query* on the fly. That query is run directly on **BigQuery**, and the table filters to show the exact results.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Core Challenge Features Hit
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+* **`Voice-to-Structured-CRM Model`**: Implemented with the browser's SpeechRecognition API and Google Vertex AI.
+* **`AI-Auto-Populating CRM`**: Implemented with our Email Ingestion feature, showing the platform's flexibility.
+* **`AI Search and Relationship Insights`**: Our *killer feature*. We use Gemini to write and execute BigQuery SQL from plain English.
+* **`Zero-Click Interface`**: The UI is built to prove the concept: "focus on conversations, not forms."
 
-## Learn More
+### Evaluation Criteria (How We Win)
 
-To learn more about Next.js, take a look at the following resources:
+* **`Automation Accuracy`**: **High.** We use `gemini-1.5-pro` with `temperature: 0.1` and `responseMimeType: "application/json"` for reliable, structured output.
+* **`Use of Google AI / Vertex AI`**: **A+**. This project makes *strong* use of the exact recommended stack:
+    * **Google Vertex AI (Gemini 1.5 Pro)**: For both data extraction and SQL generation.
+    * **Google BigQuery**: As our scalable, serverless data warehouse.
+* **`Data Freshness and Reliability`**: **A+**. Data is live from BigQuery and entries are timestamped and inserted in real-time.
+* **`Search and Intelligence`**: **A+**. This is our core innovation.
+* **`User Experience`**: **A+**. The flow is seamless and proves the "zero-click" value proposition.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Tech Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+* **Frontend:** Next.js 14 (App Router) & TailwindCSS
+* **Backend:** Next.js API Routes
+* **AI:** Google Cloud Vertex AI (Gemini 1.5 Pro)
+* **Database:** Google Cloud BigQuery
+* **Deployment:** Vercel

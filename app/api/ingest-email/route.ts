@@ -1,4 +1,4 @@
-// app/api/process/route.ts
+// app/api/ingest-email/route.ts
 import { VertexAI } from "@google-cloud/vertexai";
 import { BigQuery } from "@google-cloud/bigquery";
 import { NextResponse } from "next/server";
@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 // --- CONFIGURATION ---
 const PROJECT_ID = "gen-lang-client-0419608159"; // Your Project ID
 const LOCATION = "asia-south1"; // Mumbai
-const MODEL_NAME = "gemini-1.5-pro-preview-0514"; // Use a powerful model
+const MODEL_NAME = "gemini-1.5-pro-preview-0514";
 
 const DATASET_ID = "zero_click_crm_dataset";
 const TABLE_ID = "contacts";
@@ -29,30 +29,30 @@ const model = vertex_ai.preview.getGenerativeModel({ model: MODEL_NAME });
 const bigquery = new BigQuery({ projectId: PROJECT_ID, credentials });
 // --- End of Smart Init ---
 
-// System prompt from your previous file, slightly improved
+// NEW PROMPT FOR EMAILS
 const SYSTEM_PROMPT = `You are an expert AI assistant for a "Zero-Click CRM".
-Your job is to extract structured information from a salesperson's voice-memo transcript.
-The user speaks casually. The transcript is provided as "TRANSCRIPT:".
+Your job is to extract structured information from a raw email body.
+The user is a busy salesperson. The email is provided as "EMAIL:".
 Strictly extract the following information. If a field is not mentioned, return "null".
 Respond ONLY with a valid JSON object in the following format:
 
 {
-  "contact_name": "string",
-  "company_name": "string",
-  "deal_value_usd": "integer",
+  "contact_name": "string (The name of the *other* person, not the CRM user)",
+  "company_name": "string (The other person's company)",
+  "deal_value_usd": "integer (Look for '$' or '₹' values. If '₹', convert to USD at 80:1 rate, e.g., ₹80,000 = 1000)",
   "sentiment": "string (options: 'Positive', 'Neutral', 'Negative')",
-  "next_step": "string (the main action item for the salesperson)",
+  "next_step": "string (The main action item for the salesperson)",
   "follow_up_date": "string (format as YYYY-MM-DD, or null)",
-  "full_summary": "string (a 1-2 sentence summary of the call)",
+  "full_summary": "string (a 1-2 sentence summary of the email)",
   "at_risk": "boolean (true if the deal has any problems, false otherwise)"
 }
 `;
 
 export async function POST(request: Request) {
-  const { transcript } = await request.json();
+  const { emailBody } = await request.json();
 
-  if (!transcript) {
-    return NextResponse.json({ error: "Missing transcript" }, { status: 400 });
+  if (!emailBody) {
+    return NextResponse.json({ error: "Missing emailBody" }, { status: 400 });
   }
 
   try {
@@ -61,9 +61,9 @@ export async function POST(request: Request) {
       systemInstruction: {
         parts: [{ text: SYSTEM_PROMPT }],
       },
-      contents: [{ role: "user", parts: [{ text: `TRANSCRIPT: ${transcript}` }] }],
+      contents: [{ role: "user", parts: [{ text: `EMAIL: ${emailBody}` }] }],
       generationConfig: {
-        responseMimeType: "application/json", // Force JSON output!
+        responseMimeType: "application/json",
         temperature: 0.1,
       },
     };
@@ -82,8 +82,8 @@ export async function POST(request: Request) {
     // 2. --- INSERT INTO BIGQUERY (THE "DATABASE") ---
     const newRow = {
       ...structuredData,
-      transcript: transcript, // Add the full transcript
-      created_at: new Date().toISOString(), // Add a timestamp
+      transcript: `[EMAIL] ${emailBody.substring(0, 500)}...`, // Store a snippet
+      created_at: new Date().toISOString(),
     };
 
     // Clean up nulls for BigQuery (it prefers 'undefined' to 'null')
@@ -98,16 +98,16 @@ export async function POST(request: Request) {
       .table(TABLE_ID)
       .insert([newRow]);
 
-    console.log("Successfully inserted into BigQuery");
+    console.log("Successfully inserted email data into BigQuery");
 
     // 3. --- RETURN THE DATA TO THE FRONTEND ---
     return NextResponse.json(newRow);
 
   } catch (error) {
-    console.error("Error processing request:", error);
+    console.error("Error processing email request:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to process request", details: errorMessage },
+      { error: "Failed to process email request", details: errorMessage },
       { status: 500 }
     );
   }

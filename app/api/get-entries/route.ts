@@ -1,10 +1,30 @@
 // app/api/get-entries/route.ts
 import { BigQuery } from "@google-cloud/bigquery";
+import { VertexAI } from "@google-cloud/vertexai"; // Import VertexAI for consistency
 import { NextResponse } from "next/server";
 
-const bigquery = new BigQuery({ projectId: "gen-lang-client-0419608159" });
+// --- CONFIGURATION ---
+const PROJECT_ID = "gen-lang-client-0419608159";
+const LOCATION = "asia-south1";
 const DATASET = "zero_click_crm_dataset";
 const TABLE = "contacts";
+// ---------------------
+
+// --- Smart Client Initialization ---
+let credentials;
+try {
+  // Check for Vercel environment variable
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+    credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+  }
+} catch (e) {
+  console.error("Failed to parse GCP credentials from env var", e);
+}
+
+// We init both, even if we only use one, to keep the logic standard
+const vertex_ai = new VertexAI({ project: PROJECT_ID, location: LOCATION, credentials });
+const bigquery = new BigQuery({ projectId: PROJECT_ID, credentials });
+// --- End of Smart Init ---
 
 export async function GET() {
   try {

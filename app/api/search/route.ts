@@ -12,9 +12,21 @@ const DATASET = "zero_click_crm_dataset";
 const TABLE = "contacts";
 // ---------------------
 
-const vertex_ai = new VertexAI({ project: PROJECT_ID, location: LOCATION });
+// --- Smart Client Initialization ---
+let credentials;
+try {
+  // Check for Vercel environment variable
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+    credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+  }
+} catch (e) {
+  console.error("Failed to parse GCP credentials from env var", e);
+}
+
+const vertex_ai = new VertexAI({ project: PROJECT_ID, location: LOCATION, credentials });
 const model = vertex_ai.preview.getGenerativeModel({ model: MODEL_NAME });
-const bigquery = new BigQuery({ projectId: PROJECT_ID });
+const bigquery = new BigQuery({ projectId: PROJECT_ID, credentials });
+// --- End of Smart Init ---
 
 const SEARCH_PROMPT = `You are a Google BigQuery expert.
 Your job is to convert a user's natural language query into a valid BigQuery SQL query.
