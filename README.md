@@ -1,4 +1,4 @@
-# 🏆 Zero-Click CRM (Hack-Nation 1st Prize Winner)
+# Zero-Click CRM
 
 A submission for the Hack-Nation "VC Big Bets" track.
 This prototype rethinks the CRM from the ground up, built on a "zero-click" philosophy and powered by the **Google Cloud** stack.
