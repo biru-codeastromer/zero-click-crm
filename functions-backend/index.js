@@ -37,23 +37,39 @@ functions.cloudEvent('processAudio', async (cloudEvent) => {
   console.log(`🚀 Processing file: ${fileName}`);
 
   try {
-    console.log("🎧 Running Speech-to-Text...");
+    // 1) basic guard against tiny/corrupt files
+    const [meta] = await storage.bucket(bucketName).file(fileName).getMetadata();
+    const size = Number(meta.size || 0);
+    if (size < 10 * 1024) throw new Error(`Audio too small (${size} bytes)`);
+
+    // 2) choose encoding by extension; your mono/16k WAV => LINEAR16
+    const lower = (fileName || "").toLowerCase();
+    let encoding = undefined;
+    if (lower.endsWith(".wav")) encoding = "LINEAR16";
+    else if (lower.endsWith(".mp3")) encoding = "MP3";
+    else if (lower.endsWith(".ogg")) encoding = "OGG_OPUS";
+    else if (lower.endsWith(".webm")) encoding = "WEBM_OPUS";
+    else throw new Error(`Unsupported audio type: ${fileName}`);
+
+    console.log("🎧 Running Speech-to-Text with encoding:", encoding);
     const [operation] = await speechClient.longRunningRecognize({
       audio: { uri: gcsUri },
       config: {
+        encoding,
+        // safe when your file is 16k mono; omit if unsure
+        sampleRateHertz: encoding === "LINEAR16" ? 16000 : undefined,
         languageCode: 'en-US',
-        enableAutomaticPunctuation: true,
-      },
+        enableAutomaticPunctuation: true
+      }
     });
     const [response] = await operation.promise();
 
     const transcript = (response.results || [])
-      .map((r) => r.alternatives?.[0]?.transcript || "")
+      .map(r => r.alternatives?.[0]?.transcript || "")
       .filter(Boolean)
       .join('\n');
 
     if (!transcript) throw new Error("❌ Empty transcript from Speech-to-Text.");
-
     console.log("✅ Transcript complete, sending to Gemini...");
 
     const aiReq = {
@@ -64,20 +80,16 @@ functions.cloudEvent('processAudio', async (cloudEvent) => {
 
     const result = await model.generateContent(aiReq);
     const text = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text;
-
     if (!text) throw new Error("❌ Invalid AI response structure.");
+
     let structuredData;
-    try {
-      structuredData = JSON.parse(text);
-    } catch (_) {
-      throw new Error("❌ Gemini did not return valid JSON");
-    }
+    try { structuredData = JSON.parse(text); }
+    catch { throw new Error("❌ Gemini did not return valid JSON"); }
 
     const usd = Number(structuredData.deal_value_usd);
     const atRisk = typeof structuredData.at_risk === 'boolean' ? structuredData.at_risk : null;
     const follow = structuredData.follow_up_date && /^\d{4}-\d{2}-\d{2}$/.test(structuredData.follow_up_date)
-      ? structuredData.follow_up_date
-      : null;
+      ? structuredData.follow_up_date : null;
 
     const newRow = {
       contact_name: structuredData.contact_name ?? null,
@@ -94,7 +106,6 @@ functions.cloudEvent('processAudio', async (cloudEvent) => {
 
     await bigquery.dataset(DATASET_ID).table(TABLE_ID).insert([newRow]);
     console.log(`✅ Inserted row for ${fileName}`);
-
   } catch (err) {
     console.error(`💥 Failed to process ${fileName}:`, err);
   }

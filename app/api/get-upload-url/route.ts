@@ -4,7 +4,13 @@ import crypto from "crypto";
 
 const PROJECT_ID = "gen-lang-client-0419608159";
 const BUCKET_NAME = "zero-click-uploads-gen-lang-client-0419608159";
-const ALLOWED = new Set(["audio/mpeg","audio/wav","audio/x-wav","audio/mp4","audio/m4a","audio/aac","audio/3gpp"]);
+const ALLOWED = new Set([
+  "audio/mpeg",          // mp3
+  "audio/wav",           // wav (LINEAR16)
+  "audio/x-wav",
+  "audio/ogg",           // ogg/opus
+  "audio/webm"           // webm/opus
+]);
 const MAX_MB = 50;
 
 let credentials: any;
