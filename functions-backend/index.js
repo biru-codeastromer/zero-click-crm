@@ -5,8 +5,8 @@ const { BigQuery } = require('@google-cloud/bigquery');
 const { Storage } = require('@google-cloud/storage');
 
 const PROJECT_ID = "gen-lang-client-0419608159";
-const LOCATION = "asia-south1";
-const MODEL_NAME = "gemini-1.5-pro-preview-0514";
+const LOCATION = "us-central1";
+const MODEL_NAME = "gemini-1.5-pro";
 const DATASET_ID = "zero_click_crm_dataset";
 const TABLE_ID = "contacts";
 

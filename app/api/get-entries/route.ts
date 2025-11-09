@@ -1,21 +1,28 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { NextResponse } from "next/server";
+import fs from "node:fs";
 
 const PROJECT_ID = "gen-lang-client-0419608159";
-const LOCATION = "asia-south1";
+const LOCATION = "asia-south1"; // keep dataset region
 const DATASET = "zero_click_crm_dataset";
 const TABLE = "contacts";
 
-let credentials: any;
+let credentials: any | undefined = undefined;
 try {
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
     credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    const raw = fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, "utf8");
+    credentials = JSON.parse(raw);
   }
 } catch (e) {
-  console.error("Failed to parse GCP credentials from env var", e);
+  console.error("Failed to load GCP credentials:", e);
 }
 
-const bigquery = new BigQuery({ projectId: PROJECT_ID, credentials });
+const bigquery = new BigQuery({
+  projectId: PROJECT_ID,
+  ...(credentials ? { credentials } : {})
+});
 
 export async function GET() {
   try {
