@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import fs from "node:fs";
 
 const PROJECT_ID = "gen-lang-client-0419608159";
-const LOCATION = "asia-south1"; // keep dataset region
+const LOCATION = "asia-south1";
 const DATASET = "zero_click_crm_dataset";
 const TABLE = "contacts";
 

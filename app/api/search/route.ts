@@ -5,13 +5,10 @@ import fs from "node:fs";
 
 const PROJECT_ID = "gen-lang-client-0419608159";
 
-// ⚠️ Vertex runs in us-central1 (Gemini 2.5)
-// ⚠️ Your BigQuery dataset is in asia-south1
 const VERTEX_LOCATION = "us-central1";
 const BQ_LOCATION = "asia-south1";
 
-// Use what your project actually exposes
-const MODEL_NAME = "gemini-2.5-flash"; // or "gemini-2.5-pro"
+const MODEL_NAME = "gemini-2.5-flash";
 const TABLE_FQN = "`gen-lang-client-0419608159.zero_click_crm_dataset.contacts`";
 
 let credentials: any | undefined = undefined;
@@ -42,7 +39,6 @@ const bigquery = new BigQuery({
   ...(credentials ? { credentials } : {})
 });
 
-// Strong prompt with examples + strict output rule
 const SEARCH_PROMPT = `
 You are a BigQuery expert. Convert the user's request into ONE valid BigQuery Standard SQL query for table:
 ${TABLE_FQN}
@@ -91,22 +87,17 @@ User: "{{USER_QUERY}}"
 SQL:
 `;
 
-// Remove code fences/backticks/markdown, ensure it starts with SELECT
 function cleanSql(s: string | undefined): string {
   if (!s) return "";
   let t = s.trim();
 
-  // strip ```sql ... ``` or ``` ... ```
   t = t.replace(/^```[\s\S]*?\n/, "").replace(/```$/g, "").trim();
 
-  // strip stray backticks at ends
   if (t.startsWith("`") && t.endsWith("`")) t = t.slice(1, -1).trim();
 
-  // if it somehow returned JSON or prose, drop everything before first SELECT
   const idx = t.toUpperCase().indexOf("SELECT ");
   if (idx > 0) t = t.slice(idx);
 
-  // ensure a trailing semicolon is optional for BQ, but harmless
   return t;
 }
 

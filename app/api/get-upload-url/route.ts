@@ -24,7 +24,6 @@ export async function POST(request: Request) {
     if (!fileType || !ALLOWED.has(fileType))
       return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
 
-    // Create a safe key: uploads/YYYY/MM/DD/<random>__sanitizedName
     const date = new Date();
     const prefix = `uploads/${date.getUTCFullYear()}/${(date.getUTCMonth()+1).toString().padStart(2,"0")}/${date.getUTCDate().toString().padStart(2,"0")}`;
     const rand = crypto.randomBytes(8).toString("hex");
@@ -37,7 +36,7 @@ export async function POST(request: Request) {
     const [url] = await file.getSignedUrl({
       version: "v4",
       action: "write",
-      expires: Date.now() + 10 * 60 * 1000, // 10 minutes
+      expires: Date.now() + 10 * 60 * 1000,
       contentType: fileType
     });
 

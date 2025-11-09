@@ -7,11 +7,11 @@ interface CrmEntry {
   deal_value_usd: number | null;
   sentiment: string | null;
   next_step: string | null;
-  follow_up_date: string | null; // DATE as string
+  follow_up_date: string | null;
   full_summary: string | null;
   at_risk: boolean | null;
   transcript: string | null;
-  created_at: string | Date | null; // TIMESTAMP
+  created_at: string | Date | null;
 }
 
 export default function Home() {
@@ -194,4 +194,3 @@ export default function Home() {
     </main>
   );
 }
- 
