@@ -42,3 +42,5 @@ next-env.d.ts
 
 # Google Cloud Key
 service-account.json
+
+/functions/node_modules
