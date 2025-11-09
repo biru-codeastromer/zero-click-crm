@@ -1,6 +1,6 @@
 // app/api/get-entries/route.ts
 import { BigQuery } from "@google-cloud/bigquery";
-import { VertexAI } from "@google-cloud/vertexai"; // Import VertexAI for consistency
+import { VertexAI } from "@google-cloud/vertexai"; // Import for consistency
 import { NextResponse } from "next/server";
 
 // --- CONFIGURATION ---
@@ -17,6 +17,7 @@ try {
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
     credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
   }
+  // If not on Vercel, it will automatically use the local GOOGLE_APPLICATION_CREDENTIALS file
 } catch (e) {
   console.error("Failed to parse GCP credentials from env var", e);
 }
@@ -28,7 +29,6 @@ const bigquery = new BigQuery({ projectId: PROJECT_ID, credentials });
 
 export async function GET() {
   try {
-    // Note: Using your full Project ID here.
     const query = `SELECT *
       FROM \`gen-lang-client-0419608159.${DATASET}.${TABLE}\`
       ORDER BY created_at DESC

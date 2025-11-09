@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Zero-Click CRM | Hack-Nation",
-  description: "AI-Powered CRM with Vertex AI and BigQuery",
+  description: "Enterprise-Grade AI CRM with Vertex AI, Speech-to-Text, and BigQuery",
 };
 
 export default function RootLayout({

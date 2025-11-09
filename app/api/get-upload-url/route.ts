@@ -16,14 +16,12 @@ try {
 } catch (e) {
   console.error("Failed to parse GCP credentials from env var", e);
 }
-
 const storage = new Storage({ projectId: PROJECT_ID, credentials });
 // --- End of Smart Init ---
 
 export async function POST(request: Request) {
   try {
     const { fileName, fileType } = await request.json();
-
     if (!fileName || !fileType) {
       return NextResponse.json({ error: "Missing fileName or fileType" }, { status: 400 });
     }
@@ -38,9 +36,7 @@ export async function POST(request: Request) {
       contentType: fileType,
     };
 
-    // Get a signed URL for uploading
     const [url] = await file.getSignedUrl(options);
-
     return NextResponse.json({ url });
 
   } catch (error) {

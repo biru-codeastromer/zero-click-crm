@@ -22,11 +22,8 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [crmEntries, setCrmEntries] = useState<CrmEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  // --- NEW STATE FOR UPLOADING ---
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  // -------------------------------
 
   // 3. LOAD DATA FROM BIGQUERY
   const fetchEntries = async (isRefreshing = false) => {
@@ -77,8 +74,11 @@ export default function Home() {
         }),
       });
 
-      if (!response.ok) throw new Error("Failed to get upload URL.");
-
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(`Failed to get upload URL: ${err.details || err.error}`);
+      }
+      
       const { url } = await response.json();
 
       // 2. Upload the file *directly* to Google Cloud Storage
@@ -90,18 +90,20 @@ export default function Home() {
         body: selectedFile,
       });
 
-      alert("File uploaded! The AI is processing it now. Refresh in a moment.");
+      alert("✅ File uploaded successfully! \n\nThe AI is processing it now. Click 'Refresh' in 1-2 minutes to see the new entry.");
       setSelectedFile(null); // Clear the file input
+      // Clear the file input element itself
+      (document.getElementById('file-upload') as HTMLInputElement).value = "";
 
     } catch (error) {
       console.error("Error uploading file:", error);
-      alert(`Error uploading file: ${error}`);
+      alert(`❌ Error uploading file: ${error}`);
     }
     setUploading(false);
   };
   // ------------------------------------
-
-  // 5. "AI SEARCH" LOGIC (Unchanged)
+  
+  // 5. "AI SEARCH" LOGIC
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) {
@@ -131,7 +133,8 @@ export default function Home() {
   // 6. Helper to format BigQuery values
   const formatValue = (value: any) => {
     if (value && typeof value === 'object' && value.value) { 
-      return new Date(value.value).toLocaleString('en-IN');
+      // BigQuery dates/timestamps are { value: '...' }
+      return new Date(value.value).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
     }
     if (typeof value === 'boolean') {
       return value ? "Yes" : "No";
@@ -155,10 +158,11 @@ export default function Home() {
           Ingest a New Recording
         </h2>
         <p className="text-center text-gray-400 mb-6">
-          Upload a call recording (.mp3, .wav) from Zoom or WhatsApp.
+          Upload a call recording (.mp3, .wav, .m4a) from Zoom or WhatsApp.
         </p>
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-4">
           <input
+            id="file-upload"
             type="file"
             accept="audio/*"
             onChange={handleFileChange}
@@ -174,12 +178,10 @@ export default function Home() {
             disabled={uploading || !selectedFile}
             className="px-8 py-3 rounded-full text-lg font-semibold text-white bg-green-600 hover:bg-green-700 transition-all disabled:bg-gray-500 disabled:opacity-70"
           >
-            {uploading ? "Uploading..." : "Ingest"}
+            {uploading ? "Uploading..." : "🚀 Ingest File"}
           </button>
         </div>
       </div>
-      {/* --- END OF NEW UI --- */}
-
 
       {/* --- AI SEARCH BAR --- */}
       <div className="w-full max-w-6xl mt-12">
@@ -221,19 +223,20 @@ export default function Home() {
                 <th scope="col" className="px-6 py-3">Deal Value</th>
                 <th scope="col" className="px-6 py-3">Next Step</th>
                 <th scope="col" className="px-6 py-3">At Risk?</th>
+                <th scope="col" className="px-6 py-3">Created At</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
               {isLoading && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                     Loading data from Google BigQuery...
                   </td>
                 </tr>
               )}
               {!isLoading && crmEntries.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                     {searchQuery ? "No entries match your search." : "Upload an audio file to begin."}
                   </td>
                 </tr>
@@ -242,7 +245,7 @@ export default function Home() {
                 <tr key={index} className="hover:bg-gray-700">
                   <td className="px-6 py-4 font-medium">{formatValue(entry.contact_name)}</td>
                   <td className="px-6 py-4">{formatValue(entry.company_name)}</td>
-                  <td className="px-6 py-4">
+                  <td className.="px-6 py-4">
                     {formatValue(entry.deal_value_usd)}
                   </td>
                   <td className="px-6 py-4">{formatValue(entry.next_step)}</td>
@@ -255,6 +258,7 @@ export default function Home() {
                       {formatValue(entry.at_risk)}
                     </span>
                   </td>
+                  <td className="px-6 py-4 text-sm text-gray-400">{formatValue(entry.created_at)}</td>
                 </tr>
               ))}
             </tbody>

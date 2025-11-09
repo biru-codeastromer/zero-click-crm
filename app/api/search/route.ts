@@ -15,7 +15,6 @@ const TABLE = "contacts";
 // --- Smart Client Initialization ---
 let credentials;
 try {
-  // Check for Vercel environment variable
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
     credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
   }
