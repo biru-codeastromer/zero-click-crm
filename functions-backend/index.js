@@ -5,8 +5,8 @@ const { BigQuery } = require('@google-cloud/bigquery');
 const { Storage } = require('@google-cloud/storage');
 
 const PROJECT_ID = "gen-lang-client-0419608159";
-const LOCATION = "us-central1";
-const MODEL_NAME = "gemini-1.5-pro";
+const LOCATION = "asia-south1";
+const MODEL_NAME = "gemini-2.5-flash";
 const DATASET_ID = "zero_click_crm_dataset";
 const TABLE_ID = "contacts";
 
@@ -34,43 +34,50 @@ functions.cloudEvent('processAudio', async (cloudEvent) => {
   const bucketName = file.bucket;
   const fileName = file.name;
   const gcsUri = `gs://${bucketName}/${fileName}`;
-  console.log(`Processing file: ${fileName}`);
+  console.log(`🚀 Processing file: ${fileName}`);
 
   try {
-    // 1) STT (auto-detect, punctuation on)
+    console.log("🎧 Running Speech-to-Text...");
     const [operation] = await speechClient.longRunningRecognize({
       audio: { uri: gcsUri },
       config: {
         languageCode: 'en-US',
-        enableAutomaticPunctuation: true
-        // No encoding/sample rate -> let API infer from file
-      }
+        enableAutomaticPunctuation: true,
+      },
     });
     const [response] = await operation.promise();
+
     const transcript = (response.results || [])
-      .map(r => r.alternatives?.[0]?.transcript || "")
+      .map((r) => r.alternatives?.[0]?.transcript || "")
       .filter(Boolean)
       .join('\n');
 
-    if (!transcript) throw new Error("Empty transcript from Speech-to-Text.");
+    if (!transcript) throw new Error("❌ Empty transcript from Speech-to-Text.");
 
-    // 2) Gemini extraction
+    console.log("✅ Transcript complete, sending to Gemini...");
+
     const aiReq = {
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents: [{ role: "user", parts: [{ text: `TRANSCRIPT:\n${transcript}` }] }],
-      generationConfig: { responseMimeType: "application/json", temperature: 0.1 }
+      generationConfig: { responseMimeType: "application/json", temperature: 0.1 },
     };
 
     const result = await model.generateContent(aiReq);
     const text = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error("Invalid AI response structure.");
-    let structuredData;
-    try { structuredData = JSON.parse(text); } catch (_) { throw new Error("AI did not return valid JSON"); }
 
-    // Coerce / sanitize
+    if (!text) throw new Error("❌ Invalid AI response structure.");
+    let structuredData;
+    try {
+      structuredData = JSON.parse(text);
+    } catch (_) {
+      throw new Error("❌ Gemini did not return valid JSON");
+    }
+
     const usd = Number(structuredData.deal_value_usd);
     const atRisk = typeof structuredData.at_risk === 'boolean' ? structuredData.at_risk : null;
-    const follow = structuredData.follow_up_date && /^\d{4}-\d{2}-\d{2}$/.test(structuredData.follow_up_date) ? structuredData.follow_up_date : null;
+    const follow = structuredData.follow_up_date && /^\d{4}-\d{2}-\d{2}$/.test(structuredData.follow_up_date)
+      ? structuredData.follow_up_date
+      : null;
 
     const newRow = {
       contact_name: structuredData.contact_name ?? null,
@@ -82,13 +89,13 @@ functions.cloudEvent('processAudio', async (cloudEvent) => {
       full_summary: structuredData.full_summary ?? null,
       at_risk: atRisk,
       transcript,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
 
-    // Insert to BigQuery
     await bigquery.dataset(DATASET_ID).table(TABLE_ID).insert([newRow]);
-    console.log(`Inserted row for ${fileName}`);
+    console.log(`✅ Inserted row for ${fileName}`);
+
   } catch (err) {
-    console.error(`Failed to process ${fileName}:`, err);
+    console.error(`💥 Failed to process ${fileName}:`, err);
   }
 });
