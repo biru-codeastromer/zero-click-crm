@@ -1,122 +1,94 @@
-// index.js (Your new Cloud Function)
 const functions = require('@google-cloud/functions-framework');
 const { SpeechClient } = require('@google-cloud/speech');
 const { VertexAI } = require('@google-cloud/vertexai');
 const { BigQuery } = require('@google-cloud/bigquery');
 const { Storage } = require('@google-cloud/storage');
 
-// --- CONFIGURATION ---
 const PROJECT_ID = "gen-lang-client-0419608159";
 const LOCATION = "asia-south1";
 const MODEL_NAME = "gemini-1.5-pro-preview-0514";
 const DATASET_ID = "zero_click_crm_dataset";
 const TABLE_ID = "contacts";
-// ---------------------
 
-// Initialize all clients
 const speechClient = new SpeechClient({ projectId: PROJECT_ID });
 const vertex_ai = new VertexAI({ project: PROJECT_ID, location: LOCATION });
 const model = vertex_ai.preview.getGenerativeModel({ model: MODEL_NAME });
 const bigquery = new BigQuery({ projectId: PROJECT_ID });
 const storage = new Storage({ projectId: PROJECT_ID });
 
-// The AI prompt
 const SYSTEM_PROMPT = `You are an expert AI assistant for a "Zero-Click CRM".
-Your job is to extract structured information from a sales-call or meeting transcript.
-The transcript is provided as "TRANSCRIPT:".
-Strictly extract the following information. If a field is not mentioned, return "null".
-Respond ONLY with a valid JSON object in the following format:
-
+Extract JSON with the following fields. Return a single compact JSON object. Use null where unknown.
 {
   "contact_name": "string",
   "company_name": "string",
-  "deal_value_usd": "integer (Look for '$' or '₹' values. If '₹', convert to USD at 80:1 rate, e.g., ₹80,000 = 1000)",
-  "sentiment": "string (options: 'Positive', 'Neutral', 'Negative')",
-  "next_step": "string (the main action item for the salesperson)",
-  "follow_up_date": "string (format as YYYY-MM-DD, or null)",
-  "full_summary": "string (a 1-2 sentence summary of the call)",
-  "at_risk": "boolean (true if the deal has any problems, false otherwise)"
-}
-`;
+  "deal_value_usd": "integer (parse $, or convert ₹ to USD using 80:1)",
+  "sentiment": "Positive|Neutral|Negative",
+  "next_step": "string",
+  "follow_up_date": "YYYY-MM-DD or null",
+  "full_summary": "1-2 sentence string",
+  "at_risk": "boolean"
+}`;
 
-// This is the Cloud Function that will be triggered
 functions.cloudEvent('processAudio', async (cloudEvent) => {
   const file = cloudEvent.data;
   const bucketName = file.bucket;
   const fileName = file.name;
   const gcsUri = `gs://${bucketName}/${fileName}`;
-
   console.log(`Processing file: ${fileName}`);
 
   try {
-    // 1. --- SPEECH-TO-TEXT ---
-    const audio = { uri: gcsUri };
-    const config = {
-      encoding: 'MP3', // Change this if you upload WAV/M4A
-      sampleRateHertz: 16000, // Common for voice
-      languageCode: 'en-US',
-      enableAutomaticPunctuation: true,
-    };
-    const request = { audio: audio, config: config };
-
-    console.log("Sending to Speech-to-Text...");
-    const [operation] = await speechClient.longRunningRecognize(request);
-    const [response] = await operation.promise();
-
-    const transcript = response.results
-      .map(result => result.alternatives[0].transcript)
-      .join('\n');
-
-    if (!transcript) {
-      throw new Error("Empty transcript from Speech-to-Text.");
-    }
-    console.log(`Transcript: ${transcript}`);
-
-    // 2. --- VERTEX AI (GEMINI) ---
-    const aiReq = {
-      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents: [{ role: "user", parts: [{ text: `TRANSCRIPT: ${transcript}` }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.1,
-      },
-    };
-
-    console.log("Sending to Vertex AI...");
-    const result = await model.generateContent(aiReq);
-    const aiResponse = result.response;
-
-    if (!aiResponse.candidates?.[0]?.content?.parts?.[0]?.text) {
-      throw new Error("Invalid AI response structure from Vertex AI");
-    }
-
-    const jsonText = aiResponse.candidates[0].content.parts[0].text;
-    console.log("AI Response:", jsonText);
-    const structuredData = JSON.parse(jsonText);
-
-    // 3. --- BIGQUERY INSERT ---
-    const newRow = {
-      ...structuredData,
-      transcript: transcript,
-      created_at: new Date().toISOString(),
-    };
-
-    // Clean up nulls for BigQuery
-    Object.keys(newRow).forEach(key => {
-      if (newRow[key] === null) {
-        newRow[key] = undefined;
+    // 1) STT (auto-detect, punctuation on)
+    const [operation] = await speechClient.longRunningRecognize({
+      audio: { uri: gcsUri },
+      config: {
+        languageCode: 'en-US',
+        enableAutomaticPunctuation: true
+        // No encoding/sample rate -> let API infer from file
       }
     });
+    const [response] = await operation.promise();
+    const transcript = (response.results || [])
+      .map(r => r.alternatives?.[0]?.transcript || "")
+      .filter(Boolean)
+      .join('\n');
 
-    console.log("Inserting into BigQuery...");
-    await bigquery
-      .dataset(DATASET_ID)
-      .table(TABLE_ID)
-      .insert([newRow]);
+    if (!transcript) throw new Error("Empty transcript from Speech-to-Text.");
 
-    console.log(`Successfully processed and inserted ${fileName}`);
+    // 2) Gemini extraction
+    const aiReq = {
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [{ role: "user", parts: [{ text: `TRANSCRIPT:\n${transcript}` }] }],
+      generationConfig: { responseMimeType: "application/json", temperature: 0.1 }
+    };
 
-  } catch (error) {
-    console.error(`Failed to process ${fileName}:`, error);
+    const result = await model.generateContent(aiReq);
+    const text = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error("Invalid AI response structure.");
+    let structuredData;
+    try { structuredData = JSON.parse(text); } catch (_) { throw new Error("AI did not return valid JSON"); }
+
+    // Coerce / sanitize
+    const usd = Number(structuredData.deal_value_usd);
+    const atRisk = typeof structuredData.at_risk === 'boolean' ? structuredData.at_risk : null;
+    const follow = structuredData.follow_up_date && /^\d{4}-\d{2}-\d{2}$/.test(structuredData.follow_up_date) ? structuredData.follow_up_date : null;
+
+    const newRow = {
+      contact_name: structuredData.contact_name ?? null,
+      company_name: structuredData.company_name ?? null,
+      deal_value_usd: Number.isFinite(usd) ? usd : null,
+      sentiment: structuredData.sentiment ?? null,
+      next_step: structuredData.next_step ?? null,
+      follow_up_date: follow,
+      full_summary: structuredData.full_summary ?? null,
+      at_risk: atRisk,
+      transcript,
+      created_at: new Date().toISOString()
+    };
+
+    // Insert to BigQuery
+    await bigquery.dataset(DATASET_ID).table(TABLE_ID).insert([newRow]);
+    console.log(`Inserted row for ${fileName}`);
+  } catch (err) {
+    console.error(`Failed to process ${fileName}:`, err);
   }
 });

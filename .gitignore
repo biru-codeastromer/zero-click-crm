@@ -40,9 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Google Cloud Key
-service-account.json
-
 # ignore backend node_modules
 /functions-backend/node_modules
 
+# Local creds (never commit)
+gcp-key.json
