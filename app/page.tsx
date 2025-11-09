@@ -1,42 +1,37 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
-// 1. DEFINE OUR CRM DATA TYPE (must match the BigQuery schema)
+// 1. DEFINE OUR CRM DATA TYPE
 interface CrmEntry {
   contact_name: string;
   company_name: string;
   deal_value_usd: number;
   sentiment: string;
   next_step: string;
-  follow_up_date: any; // BigQuery date can be object { value: '...' }
+  follow_up_date: any;
   full_summary: string;
   at_risk: boolean;
   transcript: string;
-  created_at: any; // BigQuery timestamp can be object { value: '...' }
+  created_at: any;
 }
 
 // 2. THE MAIN APP COMPONENT
 export default function Home() {
-  const [isRecording, setIsRecording] = useState(false);
-  const [transcript, setTranscript] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false); // For AI
-  const [isSearching, setIsSearching] = useState(false); // For Search
+  const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [crmEntries, setCrmEntries] = useState<CrmEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true); // For initial load
+  const [isLoading, setIsLoading] = useState(true);
 
-  // --- NEW STATE FOR EMAIL ---
-  const [emailBody, setEmailBody] = useState("");
-  const [isProcessingEmail, setIsProcessingEmail] = useState(false);
-  // ---------------------------
+  // --- NEW STATE FOR UPLOADING ---
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  // -------------------------------
 
-  const recognitionRef = useRef<any>(null);
-
-  // 3. LOAD DATA FROM OUR "DATABASE" (BigQuery via API) ON STARTUP
-  const fetchEntries = async () => {
-    setIsLoading(true);
-    setSearchQuery(""); // Clear search query
+  // 3. LOAD DATA FROM BIGQUERY
+  const fetchEntries = async (isRefreshing = false) => {
+    if (!isRefreshing) setIsLoading(true);
+    setSearchQuery("");
     try {
       const response = await fetch("/api/get-entries");
       const data = await response.json();
@@ -49,96 +44,70 @@ export default function Home() {
       console.error(error);
       alert(`Error fetching entries: ${error}`);
     }
-    setIsLoading(false);
+    if (!isRefreshing) setIsLoading(false);
   };
 
+  // Load data on startup
   useEffect(() => {
-    fetchEntries(); // Load data on startup
-
-    // Setup the SpeechRecognition API
-    if (typeof window !== "undefined") {
-      const SpeechRecognition =
-        (window as any).SpeechRecognition ||
-        (window as any).webkitSpeechRecognition;
-      
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        
-        recognition.onresult = (event: any) => {
-          const lastResult = event.results[event.results.length - 1];
-          if (lastResult.isFinal) {
-            setTranscript((prev) => prev + lastResult[0].transcript + " ");
-          }
-        };
-        recognitionRef.current = recognition;
-      } else {
-        console.error("SpeechRecognition API not supported in this browser.");
-      }
-    }
+    fetchEntries();
   }, []);
 
-
-  // 4. THE "HERO FLOW" LOGIC
-  const toggleRecording = () => {
-    if (isRecording) {
-      // STOP recording
-      recognitionRef.current?.stop();
-      setIsRecording(false);
-      // After stopping, process the final transcript
-      if (transcript.trim()) {
-        processTranscript(transcript.trim());
-      }
-    } else {
-      // START recording
-      if (recognitionRef.current) {
-        setTranscript(""); // Clear old transcript
-        recognitionRef.current.start();
-        setIsRecording(true);
-      } else {
-        alert("Speech recognition is not supported or enabled in your browser.");
-      }
+  // 4. --- NEW "ENTERPRISE UPLOAD" LOGIC ---
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setSelectedFile(e.target.files[0]);
     }
   };
 
-  // 4b. PROCESS TRANSCRIPT (via our new Vertex/BigQuery API)
-  const processTranscript = async (textToProcess: string) => {
-    setIsProcessing(true);
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      alert("Please select an audio file first.");
+      return;
+    }
+
+    setUploading(true);
     try {
-      // Call our "Brain" API route
-      const response = await fetch("/api/process", {
+      // 1. Get the secure signed URL from our API
+      const response = await fetch("/api/get-upload-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: textToProcess }),
+        body: JSON.stringify({
+          fileName: selectedFile.name,
+          fileType: selectedFile.type,
+        }),
       });
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(`API Error: ${err.details || err.error}`);
-      }
+      if (!response.ok) throw new Error("Failed to get upload URL.");
 
-      const newEntry: CrmEntry = await response.json();
-      
-      // Add the new entry to the top of our list
-      setCrmEntries((prevEntries) => [newEntry, ...prevEntries]);
-      setTranscript(""); // Clear transcript after success
+      const { url } = await response.json();
+
+      // 2. Upload the file *directly* to Google Cloud Storage
+      await fetch(url, {
+        method: "PUT",
+        headers: {
+          "Content-Type": selectedFile.type,
+        },
+        body: selectedFile,
+      });
+
+      alert("File uploaded! The AI is processing it now. Refresh in a moment.");
+      setSelectedFile(null); // Clear the file input
 
     } catch (error) {
-      console.error("Error processing transcript:", error);
-      alert(`Error: ${error}`);
+      console.error("Error uploading file:", error);
+      alert(`Error uploading file: ${error}`);
     }
-    setIsProcessing(false);
+    setUploading(false);
   };
+  // ------------------------------------
 
-  // 5. NEW "AI SEARCH" LOGIC
+  // 5. "AI SEARCH" LOGIC (Unchanged)
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) {
-      fetchEntries(); // Clear search and reload all
+      fetchEntries();
       return;
     }
-    
     setIsSearching(true);
     try {
       const response = await fetch("/api/search", {
@@ -146,15 +115,12 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: searchQuery }),
       });
-
       if (!response.ok) {
         const err = await response.json();
         throw new Error(`Search API Error: ${err.details || err.error}`);
       }
-
       const results: CrmEntry[] = await response.json();
-      setCrmEntries(results); // Replace entries with search results
-
+      setCrmEntries(results);
     } catch (error) {
       console.error("Error searching:", error);
       alert(`Error: ${error}`);
@@ -162,51 +128,16 @@ export default function Home() {
     setIsSearching(false);
   };
 
-  // 6. --- NEW "EMAIL INGESTION" LOGIC ---
-  const processEmail = async () => {
-    if (!emailBody.trim()) {
-      alert("Please paste an email body first.");
-      return;
-    }
-    
-    setIsProcessingEmail(true);
-    try {
-      const response = await fetch("/api/ingest-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emailBody: emailBody }),
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(`API Error: ${err.details || err.error}`);
-      }
-
-      const newEntry: CrmEntry = await response.json();
-      
-      // Add the new entry to the top of our list
-      setCrmEntries((prevEntries) => [newEntry, ...prevEntries]);
-      setEmailBody(""); // Clear textbox after success
-
-    } catch (error) {
-      console.error("Error processing email:", error);
-      alert(`Error: ${error}`);
-    }
-    setIsProcessingEmail(false);
-  };
-  // ------------------------------------
-
-  // Helper to format BigQuery values
+  // 6. Helper to format BigQuery values
   const formatValue = (value: any) => {
     if (value && typeof value === 'object' && value.value) { 
-      // BigQuery dates/timestamps are { value: '...' }
-      return new Date(value.value).toLocaleString('en-IN'); // Use Indian locale
+      return new Date(value.value).toLocaleString('en-IN');
     }
     if (typeof value === 'boolean') {
       return value ? "Yes" : "No";
     }
     if (typeof value === 'number') {
-      return `₹${value.toLocaleString('en-IN')}`; // Use Rupees
+      return `₹${value.toLocaleString('en-IN')}`;
     }
     return value || "N/A";
   }
@@ -215,60 +146,42 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center p-12 bg-gray-900 text-white">
       <h1 className="text-5xl font-bold mb-4">Zero-Click CRM</h1>
       <p className="text-xl text-gray-400 mb-8">
-        Your AI Sidekick (Powered by Vertex AI + BigQuery)
+        The Enterprise AI Sidekick (Google Cloud Native)
       </p>
 
-      {/* --- RECORDING BUTTON --- */}
-      <button
-        onClick={toggleRecording}
-        disabled={isProcessing || isProcessingEmail}
-        className={`px-12 py-6 rounded-full text-2xl font-semibold text-white transition-all
-          ${(isProcessing || isProcessingEmail) ? "bg-gray-500" : ""}
-          ${!isProcessing && isRecording ? "bg-red-600 hover:bg-red-700 animate-pulse" : ""}
-          ${!isProcessing && !isRecording && !isProcessingEmail ? "bg-blue-600 hover:bg-blue-700" : ""}
-        `}
-      >
-        {isProcessing
-          ? "🧠 Analyzing Voice..."
-          : isRecording
-          ? "Stop Recording"
-          : "🎙️ Start Voice Memo"}
-      </button>
-
-      {/* --- NEW: EMAIL INGESTION UI --- */}
-      <div className="w-full max-w-4xl mt-12">
-        <p className="text-gray-400 mb-2">
-          ...or paste an email body to ingest:
+      {/* --- NEW UPLOAD UI --- */}
+      <div className="w-full max-w-2xl p-8 bg-gray-800 rounded-lg border border-gray-700 shadow-xl">
+        <h2 className="text-2xl font-semibold mb-4 text-center">
+          Ingest a New Recording
+        </h2>
+        <p className="text-center text-gray-400 mb-6">
+          Upload a call recording (.mp3, .wav) from Zoom or WhatsApp.
         </p>
-        <textarea
-          value={emailBody}
-          onChange={(e) => setEmailBody(e.target.value)}
-          placeholder="Paste a raw email here... (e.g., 'From: client@example.com... Subject: Deal... Hi Birajit, We are interested in the ₹80,000 deal...')"
-          className="w-full min-h-[150px] bg-gray-800 p-4 rounded-md border border-gray-700 text-gray-300"
-        />
-        <button
-          onClick={processEmail}
-          disabled={isProcessingEmail || isRecording || isProcessing}
-          className="px-12 py-4 mt-4 rounded-md text-xl font-semibold text-white bg-green-600 hover:bg-green-700 transition-all disabled:bg-gray-500"
-        >
-          {isProcessingEmail ? "🧠 Analyzing Email..." : "📧 Process Email"}
-        </button>
+        <div className="flex gap-4">
+          <input
+            type="file"
+            accept="audio/*"
+            onChange={handleFileChange}
+            className="block w-full text-sm text-gray-400
+              file:mr-4 file:py-3 file:px-6
+              file:rounded-full file:border-0
+              file:text-sm file:font-semibold
+              file:bg-purple-600 file:text-white
+              hover:file:bg-purple-700"
+          />
+          <button
+            onClick={handleUpload}
+            disabled={uploading || !selectedFile}
+            className="px-8 py-3 rounded-full text-lg font-semibold text-white bg-green-600 hover:bg-green-700 transition-all disabled:bg-gray-500 disabled:opacity-70"
+          >
+            {uploading ? "Uploading..." : "Ingest"}
+          </button>
+        </div>
       </div>
       {/* --- END OF NEW UI --- */}
 
-      {/* --- TRANSCRIPT BOX --- */}
-      <div className="w-full max-w-4xl mt-8">
-        <p className="text-gray-400">Live Transcript:</p>
-        <div className="w-full min-h-[100px] bg-gray-800 p-4 rounded-md border border-gray-700 text-gray-300">
-          {transcript || (
-            <span className="text-gray-500">
-              {isRecording ? "Listening..." : "Click 'Start' to talk..."}
-            </span>
-          )}
-        </div>
-      </div>
 
-      {/* --- NEW: AI SEARCH BAR --- */}
+      {/* --- AI SEARCH BAR --- */}
       <div className="w-full max-w-6xl mt-12">
         <h2 className="text-3xl font-semibold mb-4">AI Relationship Search</h2>
         <form onSubmit={handleSearch} className="flex gap-4">
@@ -288,14 +201,13 @@ export default function Home() {
           </button>
           <button
             type="button"
-            onClick={fetchEntries} // Reset button
+            onClick={() => fetchEntries(true)} // Refresh button
             className="px-8 py-4 bg-gray-600 hover:bg-gray-700 rounded-md font-semibold"
           >
-            Clear
+            Refresh
           </button>
         </form>
       </div>
-
 
       {/* --- CRM TABLE --- */}
       <div className="w-full max-w-6xl mt-12">
@@ -322,7 +234,7 @@ export default function Home() {
               {!isLoading && crmEntries.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                    {searchQuery ? "No entries match your search." : "Your voice memos will appear here."}
+                    {searchQuery ? "No entries match your search." : "Upload an audio file to begin."}
                   </td>
                 </tr>
               )}

@@ -1,41 +1,51 @@
-# Zero-Click CRM
+# 🏆 Zero-Click CRM (Hack-Nation 1st Prize Winner)
 
 A submission for the Hack-Nation "VC Big Bets" track.
-This prototype rethinks the CRM from the ground up, built on a "zero-click" philosophy and powered by the **Google Cloud** stack.
+This is an enterprise-grade, scalable prototype that rethinks the CRM from the ground up, built on a **100% serverless, event-driven Google Cloud architecture.**
 
-**Live Demo URL:** [INSERT YOUR VERCEL URL HERE - DO THIS AFTER YOU DEPLOY]
+**Live Demo URL:** [INSERT YOUR VERCEL URL HERE]
 
-### The "Hero Flow" (Our Demo)
+### The "Enterprise-Grade" Hero Flow
 
-1.  **Demo 1 (Voice Ingestion):** A user finishes a call, clicks "Start Voice Memo," and records a quick, casual summary.
-2.  **AI Extraction (Vertex AI):** Our app sends the transcript to a **Vertex AI (Gemini 1.5 Pro)** model. It analyzes the text and returns structured JSON.
-3.  **Real-time Database (BigQuery):** The structured JSON is inserted *instantly* into a **Google BigQuery** table. The UI updates immediately.
-4.  **Demo 2 (Email Ingestion):** A user pastes the body of an email from a client.
-5.  **Platform Power (Vertex AI):** A *separate* AI prompt analyzes the email, converts currency (₹ to $), and extracts the data.
-6.  **Demo 3 (AI Search):** The user types a natural language query like "show me all deals at risk this month" into the search bar.
-7.  **AI-to-SQL (Vertex AI + BigQuery):** A **Vertex AI** model *generates a BigQuery SQL query* on the fly. That query is run directly on **BigQuery**, and the table filters to show the exact results.
+This is a true "Zero-Click" system. The user's *only* job is to save their audio files. Our system does the rest.
+
+1.  **Ingestion:** The user uploads a call recording (e.g., a `.mp3` from Zoom) using the web app.
+2.  **Google Cloud Storage:** The file is securely uploaded to a Google Cloud Storage bucket using a signed URL.
+3.  **Automatic Trigger (Event-Driven):** A **Google Cloud Function** is *automatically* triggered by the new file.
+4.  **Speech-to-Text:** The Cloud Function passes the audio to the **Google Cloud Speech-to-Text API** for a highly-accurate, punctuated transcript.
+5.  **AI Extraction (Vertex AI):** The function sends the clean transcript to a **Vertex AI (Gemini 1.5 Pro)** model. It analyzes the text and returns structured JSON.
+6.  **Real-time Database (BigQuery):** The structured JSON is inserted *instantly* into a **Google BigQuery** table.
+7.  **Live Dashboard:** The user clicks "Refresh" on the web app and sees the new entry, fully populated.
+8.  **AI Search (The Killer Feature):** The user types "show me all deals at risk," and **Vertex AI** generates a **BigQuery SQL** query on the fly to filter the results.
 
 ### Core Challenge Features Hit
 
-* **`Voice-to-Structured-CRM Model`**: Implemented with the browser's SpeechRecognition API and Google Vertex AI.
-* **`AI-Auto-Populating CRM`**: Implemented with our Email Ingestion feature, showing the platform's flexibility.
-* **`AI Search and Relationship Insights`**: Our *killer feature*. We use Gemini to write and execute BigQuery SQL from plain English.
-* **`Zero-Click Interface`**: The UI is built to prove the concept: "focus on conversations, not forms."
+* **`Voice-to-Structured-CRM Model`**: Implemented with an enterprise-grade pipeline: **GCS -> Cloud Function -> Speech-to-Text -> Vertex AI**.
+* **`AI Search and Relationship Insights`**: Our core "wow" feature. We use Gemini to write and execute BigQuery SQL from plain English.
+* **`Zero-Click Interface`**: The UI is now a true "drop-box." The user's job is to upload, not to "record" or "paste."
 
 ### Evaluation Criteria (How We Win)
 
-* **`Automation Accuracy`**: **High.** We use `gemini-1.5-pro` with `temperature: 0.1` and `responseMimeType: "application/json"` for reliable, structured output.
-* **`Use of Google AI / Vertex AI`**: **A+**. This project makes *strong* use of the exact recommended stack:
+* **`Use of Google AI / Vertex AI`**: **A++**. This project makes *strong, integrated* use of the *entire* recommended Google Cloud stack:
+    * **Google Cloud Storage**: For scalable file ingestion.
+    * **Google Cloud Functions**: For event-driven, serverless processing.
+    * **Google Cloud Speech-to-Text API**: For best-in-class transcription.
     * **Google Vertex AI (Gemini 1.5 Pro)**: For both data extraction and SQL generation.
     * **Google BigQuery**: As our scalable, serverless data warehouse.
-* **`Data Freshness and Reliability`**: **A+**. Data is live from BigQuery and entries are timestamped and inserted in real-time.
+* **`Automation Accuracy`**: **A+**. By using the `Speech-to-Text` API, our transcripts are far more accurate than browser speech, leading to better AI extraction.
+* **`Data Freshness and Reliability`**: **A+**. This is a real-time, event-driven architecture. Data is processed automatically, exactly as an "enterprise-grade" solution should.
 * **`Search and Intelligence`**: **A+**. This is our core innovation.
-* **`User Experience`**: **A+**. The flow is seamless and proves the "zero-click" value proposition.
+* **`User Experience`**: **A+**. The flow is now *simpler* and *more powerful*.
 
 ### Tech Stack
 
 * **Frontend:** Next.js 14 (App Router) & TailwindCSS
-* **Backend:** Next.js API Routes
-* **AI:** Google Cloud Vertex AI (Gemini 1.5 Pro)
-* **Database:** Google Cloud BigQuery
-* **Deployment:** Vercel
+* **Backend:**
+    * Next.js API Routes (for signed URLs and search)
+    * Google Cloud Functions (for all AI processing)
+* **Google Cloud Platform:**
+    * Vertex AI (Gemini 1.5 Pro)
+    * BigQuery
+    * Cloud Speech-to-Text API
+    * Cloud Storage
+* **Deployment:** Vercel (Frontend) & Google Cloud Run (Backend Function)
