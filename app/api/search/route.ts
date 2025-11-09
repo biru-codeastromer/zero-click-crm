@@ -16,9 +16,14 @@ try {
   console.error("Failed to parse GCP credentials from env var", e);
 }
 
-const vertex_ai = new VertexAI({ project: PROJECT_ID, location: LOCATION, credentials });
+const vertex_ai = new VertexAI({
+  project: PROJECT_ID,
+  location: LOCATION,
+  ...(credentials ? { googleAuthOptions: { credentials } } : {})
+});
 const model = vertex_ai.preview.getGenerativeModel({ model: MODEL_NAME });
-const bigquery = new BigQuery({ projectId: PROJECT_ID, credentials });
+const bigquery = new BigQuery({ projectId: PROJECT_ID, ...(credentials ? { credentials } : {}) });
+
 
 const SEARCH_PROMPT = `You are a BigQuery expert. Convert the user query into a single valid BigQuery SQL for table ${TABLE_FQN}.
 Schema: contact_name STRING, company_name STRING, deal_value_usd INT64, sentiment STRING, next_step STRING, follow_up_date DATE, full_summary STRING, at_risk BOOL, transcript STRING, created_at TIMESTAMP.
