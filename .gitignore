@@ -45,3 +45,6 @@ next-env.d.ts
 
 # Local creds (never commit)
 gcp-key.json
+
+# Local tooling
+.codex_commit_index
