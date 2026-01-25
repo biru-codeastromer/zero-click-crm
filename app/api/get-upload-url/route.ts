@@ -2,41 +2,36 @@ import { Storage } from "@google-cloud/storage";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 
-const PROJECT_ID = "gen-lang-client-0419608159";
-const BUCKET_NAME = "zero-click-uploads-gen-lang-client-0419608159";
-const ALLOWED = new Set([
-  "audio/mpeg",          // mp3
-  "audio/wav",           // wav (LINEAR16)
-  "audio/x-wav",
-  "audio/ogg",           // ogg/opus
-  "audio/webm"           // webm/opus
-]);
-const MAX_MB = 50;
+import { getGcpProjectId, getGcsUploadBucket, loadGcpCredentials } from "@/app/lib/gcp";
+import { ALLOWED_AUDIO_MIME_TYPES, MAX_UPLOAD_BYTES } from "@/app/lib/upload";
 
-let credentials: any;
-try {
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
-    credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
-  }
-} catch (e) {
-  console.error("Failed to parse GCP credentials from env var", e);
-}
-const storage = new Storage({ projectId: PROJECT_ID, credentials });
+const projectId = getGcpProjectId();
+const bucketName = getGcsUploadBucket();
+const credentials = loadGcpCredentials();
+const storage = new Storage({ projectId, ...(credentials ? { credentials } : {}) });
 
 export async function POST(request: Request) {
   try {
-    const { fileType, originalName } = await request.json();
+    const body = (await request.json()) as unknown;
+    const { fileType, originalName, fileSize } =
+      typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
 
-    if (!fileType || !ALLOWED.has(fileType))
+    if (typeof fileType !== "string" || !ALLOWED_AUDIO_MIME_TYPES.has(fileType))
       return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
+
+    if (typeof fileSize === "number" && fileSize > MAX_UPLOAD_BYTES) {
+      return NextResponse.json({ error: "File too large" }, { status: 400 });
+    }
 
     const date = new Date();
     const prefix = `uploads/${date.getUTCFullYear()}/${(date.getUTCMonth()+1).toString().padStart(2,"0")}/${date.getUTCDate().toString().padStart(2,"0")}`;
     const rand = crypto.randomBytes(8).toString("hex");
-    const safeName = (originalName || "audio").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
+    const safeName = (typeof originalName === "string" && originalName ? originalName : "audio")
+      .replace(/[^a-zA-Z0-9._-]/g, "_")
+      .slice(0, 80);
     const objectKey = `${prefix}/${rand}__${safeName}`;
 
-    const bucket = storage.bucket(BUCKET_NAME);
+    const bucket = storage.bucket(bucketName);
     const file = bucket.file(objectKey);
 
     const [url] = await file.getSignedUrl({
@@ -46,7 +41,7 @@ export async function POST(request: Request) {
       contentType: fileType
     });
 
-    return NextResponse.json({ url, objectKey, maxBytes: MAX_MB * 1024 * 1024 });
+    return NextResponse.json({ url, objectKey, maxBytes: MAX_UPLOAD_BYTES });
   } catch (error: any) {
     console.error("Error creating signed URL:", error);
     return NextResponse.json(
