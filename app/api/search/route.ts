@@ -1,41 +1,26 @@
 import { VertexAI } from "@google-cloud/vertexai";
 import { BigQuery } from "@google-cloud/bigquery";
 import { NextResponse } from "next/server";
-import fs from "node:fs";
+import { getBigQueryConfig, getVertexConfig, loadGcpCredentials } from "@/app/lib/gcp";
 
-const PROJECT_ID = "gen-lang-client-0419608159";
-
-const VERTEX_LOCATION = "us-central1";
-const BQ_LOCATION = "asia-south1";
-
-const MODEL_NAME = "gemini-2.5-flash";
-const TABLE_FQN = "`gen-lang-client-0419608159.zero_click_crm_dataset.contacts`";
-
-let credentials: any | undefined = undefined;
-try {
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
-    credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
-  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    const raw = fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, "utf8");
-    credentials = JSON.parse(raw);
-  }
-} catch (e) {
-  console.error("Failed to load GCP credentials:", e);
-}
+const { projectId, location: bqLocation, dataset, table } = getBigQueryConfig();
+const vertex = getVertexConfig();
+const TABLE_FQN = `\`${projectId}.${dataset}.${table}\``;
+const credentials = loadGcpCredentials();
 
 const vertex_ai = new VertexAI({
-  project: PROJECT_ID,
-  location: VERTEX_LOCATION,
+  project: vertex.projectId,
+  location: vertex.location,
   ...(credentials ? { googleAuthOptions: { credentials } } : {})
 });
 
 const model =
   (vertex_ai as any).preview?.getGenerativeModel
-    ? (vertex_ai as any).preview.getGenerativeModel({ model: MODEL_NAME })
-    : (vertex_ai as any).generativeModels.getGenerativeModel({ model: MODEL_NAME });
+    ? (vertex_ai as any).preview.getGenerativeModel({ model: vertex.model })
+    : (vertex_ai as any).generativeModels.getGenerativeModel({ model: vertex.model });
 
 const bigquery = new BigQuery({
-  projectId: PROJECT_ID,
+  projectId,
   ...(credentials ? { credentials } : {})
 });
 
@@ -120,7 +105,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Could not generate valid SQL for this query." }, { status: 400 });
     }
 
-    const [rows] = await bigquery.query({ query: sql, location: BQ_LOCATION });
+    const [rows] = await bigquery.query({ query: sql, location: bqLocation });
     return NextResponse.json(rows);
   } catch (error: any) {
     console.error("AI Search error:", error);
