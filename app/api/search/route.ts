@@ -87,12 +87,18 @@ function cleanSql(s: string | undefined): string {
 }
 
 export async function POST(request: Request) {
-  const { query } = await request.json();
-  if (!query) return NextResponse.json({ error: "Missing search query" }, { status: 400 });
+  const body = (await request.json()) as unknown;
+  const query =
+    typeof body === "object" && body !== null && typeof (body as any).query === "string"
+      ? (body as any).query
+      : "";
+  const trimmed = query.trim();
+  if (!trimmed) return NextResponse.json({ error: "Missing search query" }, { status: 400 });
+  if (trimmed.length > 500) return NextResponse.json({ error: "Query too long" }, { status: 400 });
 
   try {
     const req = {
-      contents: [{ role: "user", parts: [{ text: SEARCH_PROMPT.replace("{{USER_QUERY}}", String(query)) }] }],
+      contents: [{ role: "user", parts: [{ text: SEARCH_PROMPT.replace("{{USER_QUERY}}", trimmed) }] }],
       generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
     };
 
