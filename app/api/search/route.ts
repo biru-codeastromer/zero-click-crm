@@ -86,6 +86,62 @@ function cleanSql(s: string | undefined): string {
   return t;
 }
 
+const ALLOWED_COLUMNS = new Set([
+  "contact_name",
+  "company_name",
+  "deal_value_usd",
+  "sentiment",
+  "next_step",
+  "follow_up_date",
+  "full_summary",
+  "at_risk",
+  "transcript",
+  "created_at",
+]);
+
+function enforceSafeSql(sql: string): { ok: true; sql: string } | { ok: false; error: string } {
+  let s = sql.trim();
+  if (!s) return { ok: false, error: "Empty SQL" };
+
+  // Allow one trailing semicolon, but disallow multi-statement.
+  const semiCount = (s.match(/;/g) || []).length;
+  if (semiCount > 1) return { ok: false, error: "Multiple statements are not allowed" };
+  if (semiCount === 1 && !s.endsWith(";")) return { ok: false, error: "Multiple statements are not allowed" };
+  if (s.endsWith(";")) s = s.slice(0, -1).trim();
+
+  if (!/^SELECT\b/i.test(s)) return { ok: false, error: "Only SELECT queries are allowed" };
+
+  // Disallow common escape hatches / other table access.
+  if (/\b(WITH|UNION|JOIN)\b/i.test(s)) return { ok: false, error: "Query shape not allowed" };
+  if (/\b(INFORMATION_SCHEMA|__TABLES__|__TABLES_SUMMARY__)\b/i.test(s))
+    return { ok: false, error: "System tables are not allowed" };
+  if (/\b(INSERT|UPDATE|DELETE|MERGE|DROP|ALTER|CREATE|GRANT|REVOKE|CALL|EXECUTE)\b/i.test(s))
+    return { ok: false, error: "Only read-only queries are allowed" };
+
+  // Must reference the exact table (allowing optional surrounding backticks).
+  const tablePattern = new RegExp(String.raw`\\bFROM\\s+${TABLE_FQN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+  if (!tablePattern.test(s)) return { ok: false, error: "Query must select from the CRM table" };
+
+  // If any other fully-qualified table appears, reject.
+  const fqnMatches = s.match(/`?[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+`?/g) || [];
+  for (const fqn of fqnMatches) {
+    const normalized = fqn.replace(/`/g, "");
+    const allowed = TABLE_FQN.replace(/`/g, "");
+    if (normalized !== allowed) return { ok: false, error: "Query references a non-whitelisted table" };
+  }
+
+  // If model used backticks for columns, restrict them.
+  const backticked = s.match(/`([^`]+)`/g) || [];
+  for (const token of backticked) {
+    const inner = token.slice(1, -1);
+    if (inner === TABLE_FQN.replace(/`/g, "")) continue;
+    // Could be column-only or fqn; fqn is checked above.
+    if (!ALLOWED_COLUMNS.has(inner)) return { ok: false, error: `Disallowed identifier: ${inner}` };
+  }
+
+  return { ok: true, sql: s };
+}
+
 export async function POST(request: Request) {
   const body = (await request.json()) as unknown;
   const query =
@@ -106,12 +162,14 @@ export async function POST(request: Request) {
     const raw = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     const sql = cleanSql(raw);
 
-    if (!/^SELECT\b/i.test(sql)) {
-      console.error("Model did not return a SELECT. Raw:", raw);
-      return NextResponse.json({ error: "Could not generate valid SQL for this query." }, { status: 400 });
+    const safe = enforceSafeSql(sql);
+    if (!safe.ok) {
+      if (process.env.DEBUG_SQL === "1") console.error("Rejected SQL:", { raw, sql, reason: safe.error });
+      return NextResponse.json({ error: safe.error }, { status: 400 });
     }
+    if (process.env.DEBUG_SQL === "1") console.log("Executing SQL:", safe.sql);
 
-    const [rows] = await bigquery.query({ query: sql, location: bqLocation });
+    const [rows] = await bigquery.query({ query: safe.sql, location: bqLocation });
     return NextResponse.json(rows);
   } catch (error: any) {
     console.error("AI Search error:", error);
