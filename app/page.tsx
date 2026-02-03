@@ -1,18 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
-
-interface CrmEntry {
-  contact_name: string | null;
-  company_name: string | null;
-  deal_value_usd: number | null;
-  sentiment: string | null;
-  next_step: string | null;
-  follow_up_date: string | null;
-  full_summary: string | null;
-  at_risk: boolean | null;
-  transcript: string | null;
-  created_at: string | Date | null;
-}
+import type { CrmEntry } from "@/app/lib/types";
+import { ALLOWED_AUDIO_MIME_TYPES, MAX_UPLOAD_BYTES, UI_ALLOWED_EXTENSIONS } from "@/app/lib/upload";
+import { formatMoneyUsd, formatText, formatTimestamp } from "@/app/lib/format";
 
 export default function Home() {
   const [isSearching, setIsSearching] = useState(false);
@@ -21,6 +11,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
 
   const fetchEntries = async (isRefreshing = false) => {
     if (!isRefreshing) setIsLoading(true);
@@ -31,7 +22,7 @@ export default function Home() {
       setCrmEntries(data);
     } catch (e) {
       console.error(e);
-      alert(`Error fetching entries: ${e}`);
+      setStatus(`Error fetching entries: ${String(e)}`);
     } finally {
       if (!isRefreshing) setIsLoading(false);
     }
@@ -44,16 +35,16 @@ export default function Home() {
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) { alert("Please select an audio file first."); return; }
+    setStatus(null);
+    if (!selectedFile) { setStatus("Select an audio file first."); return; }
 
     // Client-side guardrails
-    const allowed = ["audio/mpeg", "audio/wav", "audio/x-wav", "audio/mp4", "audio/aac", "audio/m4a", "audio/3gpp"];
-    if (!allowed.includes(selectedFile.type)) {
-      alert("Unsupported file type. Use mp3, wav, or m4a.");
+    if (!ALLOWED_AUDIO_MIME_TYPES.has(selectedFile.type)) {
+      setStatus(`Unsupported file type. Use ${UI_ALLOWED_EXTENSIONS.join(", ")}.`);
       return;
     }
-    if (selectedFile.size > 50 * 1024 * 1024) {
-      alert("File too large (>50MB).");
+    if (selectedFile.size > MAX_UPLOAD_BYTES) {
+      setStatus("File too large (>50MB).");
       return;
     }
 
@@ -62,24 +53,25 @@ export default function Home() {
       const res = await fetch("/api/get-upload-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileType: selectedFile.type, originalName: selectedFile.name })
+        body: JSON.stringify({ fileType: selectedFile.type, originalName: selectedFile.name, fileSize: selectedFile.size })
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.details || json.error || "Failed to get upload URL");
 
-      await fetch(json.url, {
+      const putRes = await fetch(json.url, {
         method: "PUT",
         headers: { "Content-Type": selectedFile.type },
         body: selectedFile
       });
+      if (!putRes.ok) throw new Error(`Signed upload failed (HTTP ${putRes.status})`);
 
-      alert("✅ Uploaded. The AI pipeline is processing it. Click Refresh shortly.");
+      setStatus("Uploaded. The AI pipeline is processing it; refresh in a few seconds.");
       setSelectedFile(null);
       const el = document.getElementById("file-upload") as HTMLInputElement | null;
       if (el) el.value = "";
     } catch (e) {
       console.error(e);
-      alert(`❌ Upload error: ${e}`);
+      setStatus(`Upload error: ${String(e)}`);
     } finally {
       setUploading(false);
     }
@@ -100,20 +92,10 @@ export default function Home() {
       setCrmEntries(json);
     } catch (e) {
       console.error(e);
-      alert(`Search error: ${e}`);
+      setStatus(`Search error: ${String(e)}`);
     } finally {
       setIsSearching(false);
     }
-  };
-
-  const formatValue = (value: any) => {
-    if (value === null || value === undefined || value === "") return "N/A";
-    if (typeof value === "boolean") return value ? "Yes" : "No";
-    if (typeof value === "number") return `$${value.toLocaleString("en-US")}`;
-    // dates
-    const maybeDate = typeof value === "string" ? value : (value?.value ?? "");
-    if (maybeDate && /^\d{4}-\d{2}-\d{2}/.test(maybeDate)) return new Date(maybeDate).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-    return String(value);
   };
 
   return (
@@ -123,7 +105,7 @@ export default function Home() {
 
       <div className="w-full max-w-2xl p-8 bg-gray-800 rounded-lg border border-gray-700 shadow-xl">
         <h2 className="text-2xl font-semibold mb-4 text-center">Ingest a New Recording</h2>
-        <p className="text-center text-gray-400 mb-6">Upload a call recording (.mp3, .wav, .m4a).</p>
+        <p className="text-center text-gray-400 mb-6">Upload a call recording ({UI_ALLOWED_EXTENSIONS.join(", ")}).</p>
         <div className="flex flex-col sm:flex-row gap-4">
           <input id="file-upload" type="file" accept="audio/*" onChange={handleFileChange}
             className="block w-full text-sm text-gray-400 file:mr-4 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700" />
@@ -132,6 +114,12 @@ export default function Home() {
             {uploading ? "Uploading..." : "🚀 Ingest File"}
           </button>
         </div>
+        {selectedFile && (
+          <p className="mt-3 text-sm text-gray-300">
+            Selected: <span className="font-medium">{selectedFile.name}</span> ({Math.ceil(selectedFile.size / 1024 / 1024)}MB)
+          </p>
+        )}
+        {status && <p className="mt-3 text-sm text-gray-300">{status}</p>}
       </div>
 
       <div className="w-full max-w-6xl mt-12">
@@ -175,16 +163,16 @@ export default function Home() {
               )}
               {!isLoading && crmEntries.map((entry, i) => (
                 <tr key={i} className="hover:bg-gray-700">
-                  <td className="px-6 py-4 font-medium">{formatValue(entry.contact_name)}</td>
-                  <td className="px-6 py-4">{formatValue(entry.company_name)}</td>
-                  <td className="px-6 py-4">{formatValue(entry.deal_value_usd)}</td>
-                  <td className="px-6 py-4">{formatValue(entry.next_step)}</td>
+                  <td className="px-6 py-4 font-medium">{formatText(entry.contact_name)}</td>
+                  <td className="px-6 py-4">{formatText(entry.company_name)}</td>
+                  <td className="px-6 py-4">{formatMoneyUsd(entry.deal_value_usd)}</td>
+                  <td className="px-6 py-4">{formatText(entry.next_step)}</td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded-full text-xs ${entry.at_risk ? "bg-red-800 text-red-200" : "bg-green-800 text-green-200"}`}>
                       {entry.at_risk ? "Yes" : "No"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-400">{formatValue(entry.created_at)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-400">{formatTimestamp(entry.created_at)}</td>
                 </tr>
               ))}
             </tbody>
