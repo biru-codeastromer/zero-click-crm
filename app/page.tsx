@@ -168,9 +168,17 @@ export default function Home() {
                   <td className="px-6 py-4">{formatMoneyUsd(entry.deal_value_usd)}</td>
                   <td className="px-6 py-4">{formatText(entry.next_step)}</td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs ${entry.at_risk ? "bg-red-800 text-red-200" : "bg-green-800 text-green-200"}`}>
-                      {entry.at_risk ? "Yes" : "No"}
-                    </span>
+                    {entry.at_risk === null ? (
+                      <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-200">Unknown</span>
+                    ) : (
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          entry.at_risk ? "bg-red-800 text-red-200" : "bg-green-800 text-green-200"
+                        }`}
+                      >
+                        {entry.at_risk ? "Yes" : "No"}
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-400">{formatTimestamp(entry.created_at)}</td>
                 </tr>
