@@ -130,6 +130,18 @@ export default function Home() {
           <button type="submit" disabled={isSearching} className="px-8 py-4 bg-purple-600 hover:bg-purple-700 rounded-md font-semibold disabled:bg-gray-500">
             {isSearching ? "Searching..." : "Search"}
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery("");
+              setStatus(null);
+              fetchEntries(true);
+            }}
+            disabled={!searchQuery.trim() || isSearching}
+            className="px-6 py-4 bg-gray-700 hover:bg-gray-600 rounded-md font-semibold disabled:bg-gray-800 disabled:text-gray-500"
+          >
+            Clear
+          </button>
           <button type="button" onClick={() => fetchEntries(true)} className="px-8 py-4 bg-gray-600 hover:bg-gray-700 rounded-md font-semibold">
             Refresh
           </button>
