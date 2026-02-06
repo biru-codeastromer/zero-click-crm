@@ -12,6 +12,7 @@ export default function Home() {
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
 
   const fetchEntries = async (isRefreshing = false) => {
     if (!isRefreshing) setIsLoading(true);
@@ -20,6 +21,7 @@ export default function Home() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to fetch entries");
       setCrmEntries(data);
+      setLastRefreshedAt(new Date());
     } catch (e) {
       console.error(e);
       setStatus(`Error fetching entries: ${String(e)}`);
@@ -142,14 +144,24 @@ export default function Home() {
           >
             Clear
           </button>
-          <button type="button" onClick={() => fetchEntries(true)} className="px-8 py-4 bg-gray-600 hover:bg-gray-700 rounded-md font-semibold">
+          <button
+            type="button"
+            onClick={() => fetchEntries(true)}
+            disabled={isLoading || isSearching}
+            className="px-8 py-4 bg-gray-600 hover:bg-gray-700 rounded-md font-semibold disabled:bg-gray-800 disabled:text-gray-500"
+          >
             Refresh
           </button>
         </form>
       </div>
 
       <div className="w-full max-w-6xl mt-12">
-        <h2 className="text-3xl font-semibold mb-4">CRM Entries (Live from BigQuery)</h2>
+        <div className="flex items-end justify-between gap-6 mb-4">
+          <h2 className="text-3xl font-semibold">CRM Entries (Live from BigQuery)</h2>
+          <p className="text-sm text-gray-400">
+            Last refreshed: {lastRefreshedAt ? lastRefreshedAt.toLocaleString() : "—"}
+          </p>
+        </div>
         <div className="overflow-x-auto shadow-lg rounded-lg">
           <table className="w-full min-w-full text-left bg-gray-800">
             <thead className="bg-gray-700 text-gray-300 uppercase text-sm">
