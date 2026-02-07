@@ -71,6 +71,7 @@ export default function Home() {
       setSelectedFile(null);
       const el = document.getElementById("file-upload") as HTMLInputElement | null;
       if (el) el.value = "";
+      window.setTimeout(() => fetchEntries(true), 5000);
     } catch (e) {
       console.error(e);
       setStatus(`Upload error: ${String(e)}`);
