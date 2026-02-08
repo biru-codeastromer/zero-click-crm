@@ -110,7 +110,11 @@ export default function Home() {
         <h2 className="text-2xl font-semibold mb-4 text-center">Ingest a New Recording</h2>
         <p className="text-center text-gray-400 mb-6">Upload a call recording ({UI_ALLOWED_EXTENSIONS.join(", ")}).</p>
         <div className="flex flex-col sm:flex-row gap-4">
-          <input id="file-upload" type="file" accept="audio/*" onChange={handleFileChange}
+          <input
+            id="file-upload"
+            type="file"
+            accept={UI_ALLOWED_EXTENSIONS.join(",")}
+            onChange={handleFileChange}
             className="block w-full text-sm text-gray-400 file:mr-4 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700" />
           <button onClick={handleUpload} disabled={uploading || !selectedFile}
             className="px-8 py-3 rounded-full text-lg font-semibold text-white bg-green-600 hover:bg-green-700 transition-all disabled:bg-gray-500 disabled:opacity-70">
