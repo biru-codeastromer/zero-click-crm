@@ -32,6 +32,34 @@ export default function Home() {
 
   useEffect(() => { fetchEntries(); }, []);
 
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) return;
+    const t = window.setTimeout(() => {
+      void (async () => {
+        setIsSearching(true);
+        setStatus(null);
+        try {
+          const res = await fetch("/api/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: trimmed })
+          });
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.details || json.error || "Search failed");
+          setCrmEntries(json);
+        } catch (e) {
+          console.error(e);
+          setStatus(`Search error: ${String(e)}`);
+        } finally {
+          setIsSearching(false);
+        }
+      })();
+    }, 500);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) setSelectedFile(e.target.files[0]);
   };
