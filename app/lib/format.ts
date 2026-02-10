@@ -17,6 +17,13 @@ export function formatTimestamp(value: CrmEntry["created_at"], locale?: string):
   return d.toLocaleString(locale || undefined);
 }
 
+export function formatIsoDate(value: string | null, locale?: string): string {
+  if (!value) return "N/A";
+  const d = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString(locale || undefined);
+}
+
 export function formatText(value: string | null): string {
   if (!value) return "N/A";
   return value;
