@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import type { CrmEntry } from "@/app/lib/types";
 import { ALLOWED_AUDIO_MIME_TYPES, MAX_UPLOAD_BYTES, UI_ALLOWED_EXTENSIONS } from "@/app/lib/upload";
-import { formatMoneyUsd, formatText, formatTimestamp } from "@/app/lib/format";
+import { formatIsoDate, formatMoneyUsd, formatText, formatTimestamp } from "@/app/lib/format";
 
 export default function Home() {
   const [isSearching, setIsSearching] = useState(false);
@@ -202,19 +202,21 @@ export default function Home() {
                 <th className="px-6 py-3">Contact</th>
                 <th className="px-6 py-3">Company</th>
                 <th className="px-6 py-3">Deal Value (USD)</th>
+                <th className="px-6 py-3">Sentiment</th>
                 <th className="px-6 py-3">Next Step</th>
+                <th className="px-6 py-3">Follow Up</th>
                 <th className="px-6 py-3">At Risk?</th>
                 <th className="px-6 py-3">Created At</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
               {isLoading && (
-                <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                <tr><td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                   Loading data from Google BigQuery...
                 </td></tr>
               )}
               {!isLoading && crmEntries.length === 0 && (
-                <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                <tr><td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                   {searchQuery ? "No entries match your search." : "Upload an audio file to begin."}
                 </td></tr>
               )}
@@ -223,7 +225,9 @@ export default function Home() {
                   <td className="px-6 py-4 font-medium">{formatText(entry.contact_name)}</td>
                   <td className="px-6 py-4">{formatText(entry.company_name)}</td>
                   <td className="px-6 py-4">{formatMoneyUsd(entry.deal_value_usd)}</td>
+                  <td className="px-6 py-4">{formatText(entry.sentiment)}</td>
                   <td className="px-6 py-4">{formatText(entry.next_step)}</td>
+                  <td className="px-6 py-4">{formatIsoDate(entry.follow_up_date)}</td>
                   <td className="px-6 py-4">
                     {entry.at_risk === null ? (
                       <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-200">Unknown</span>
