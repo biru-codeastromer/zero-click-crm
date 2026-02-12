@@ -13,6 +13,7 @@ export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const [detailEntry, setDetailEntry] = useState<CrmEntry | null>(null);
 
   const fetchEntries = async (isRefreshing = false) => {
     if (!isRefreshing) setIsLoading(true);
@@ -221,7 +222,11 @@ export default function Home() {
                 </td></tr>
               )}
               {!isLoading && crmEntries.map((entry, i) => (
-                <tr key={i} className="hover:bg-gray-700">
+                <tr
+                  key={i}
+                  className="hover:bg-gray-700 cursor-pointer"
+                  onClick={() => setDetailEntry(entry)}
+                >
                   <td className="px-6 py-4 font-medium">{formatText(entry.contact_name)}</td>
                   <td className="px-6 py-4">{formatText(entry.company_name)}</td>
                   <td className="px-6 py-4">{formatMoneyUsd(entry.deal_value_usd)}</td>
@@ -248,6 +253,49 @@ export default function Home() {
           </table>
         </div>
       </div>
+
+      {detailEntry && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setDetailEntry(null)}
+        >
+          <div
+            className="w-full max-w-3xl bg-gray-900 border border-gray-700 rounded-lg shadow-2xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <h3 className="text-xl font-semibold">{formatText(detailEntry.contact_name)}</h3>
+                <p className="text-sm text-gray-400">
+                  {formatText(detailEntry.company_name)} • {formatTimestamp(detailEntry.created_at)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailEntry(null)}
+                className="px-3 py-2 rounded-md bg-gray-800 hover:bg-gray-700 text-sm"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-6 grid gap-4">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-300 mb-1">Summary</h4>
+                <p className="text-gray-200 whitespace-pre-wrap">{formatText(detailEntry.full_summary)}</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-300 mb-1">Transcript</h4>
+                <pre className="text-gray-200 whitespace-pre-wrap text-sm bg-gray-950/40 border border-gray-800 rounded-md p-4 max-h-80 overflow-auto">
+                  {formatText(detailEntry.transcript)}
+                </pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
