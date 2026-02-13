@@ -227,11 +227,23 @@ export default function Home() {
                   className="hover:bg-gray-700 cursor-pointer"
                   onClick={() => setDetailEntry(entry)}
                 >
-                  <td className="px-6 py-4 font-medium">{formatText(entry.contact_name)}</td>
-                  <td className="px-6 py-4">{formatText(entry.company_name)}</td>
+                  <td className="px-6 py-4 font-medium">
+                    <div className="max-w-56 truncate" title={entry.contact_name ?? ""}>
+                      {formatText(entry.contact_name)}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="max-w-56 truncate" title={entry.company_name ?? ""}>
+                      {formatText(entry.company_name)}
+                    </div>
+                  </td>
                   <td className="px-6 py-4">{formatMoneyUsd(entry.deal_value_usd)}</td>
                   <td className="px-6 py-4">{formatText(entry.sentiment)}</td>
-                  <td className="px-6 py-4">{formatText(entry.next_step)}</td>
+                  <td className="px-6 py-4">
+                    <div className="max-w-72 truncate" title={entry.next_step ?? ""}>
+                      {formatText(entry.next_step)}
+                    </div>
+                  </td>
                   <td className="px-6 py-4">{formatIsoDate(entry.follow_up_date)}</td>
                   <td className="px-6 py-4">
                     {entry.at_risk === null ? (
