@@ -223,7 +223,7 @@ export default function Home() {
               )}
               {!isLoading && crmEntries.map((entry, i) => (
                 <tr
-                  key={i}
+                  key={`${entry.created_at ?? ""}::${entry.contact_name ?? ""}::${entry.company_name ?? ""}::${i}`}
                   className="hover:bg-gray-700 cursor-pointer"
                   onClick={() => setDetailEntry(entry)}
                 >
