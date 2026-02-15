@@ -10,10 +10,13 @@ const bigquery = new BigQuery({
   ...(credentials ? { credentials } : {})
 });
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const url = new URL(request.url);
+    const limitParam = url.searchParams.get("limit");
+    const limit = Math.max(1, Math.min(200, limitParam ? Number(limitParam) : 50));
     const [rows] = await bigquery.query({
-      query: `SELECT * FROM \`${projectId}.${dataset}.${table}\` ORDER BY created_at DESC LIMIT 50`,
+      query: `SELECT * FROM \`${projectId}.${dataset}.${table}\` ORDER BY created_at DESC LIMIT ${Number.isFinite(limit) ? Math.floor(limit) : 50}`,
       location
     });
     return NextResponse.json(rows);
