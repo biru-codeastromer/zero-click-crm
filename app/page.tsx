@@ -14,11 +14,12 @@ export default function Home() {
   const [status, setStatus] = useState<string | null>(null);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [detailEntry, setDetailEntry] = useState<CrmEntry | null>(null);
+  const [entriesLimit, setEntriesLimit] = useState(50);
 
   const fetchEntries = async (isRefreshing = false) => {
     if (!isRefreshing) setIsLoading(true);
     try {
-      const response = await fetch("/api/get-entries");
+      const response = await fetch(`/api/get-entries?limit=${entriesLimit}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to fetch entries");
       setCrmEntries(data);
@@ -31,7 +32,7 @@ export default function Home() {
     }
   };
 
-  useEffect(() => { fetchEntries(); }, []);
+  useEffect(() => { fetchEntries(); }, [entriesLimit]);
 
   useEffect(() => {
     const trimmed = searchQuery.trim();
@@ -263,6 +264,16 @@ export default function Home() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="flex justify-center mt-4">
+          <button
+            type="button"
+            onClick={() => setEntriesLimit((v) => Math.min(200, v + 50))}
+            disabled={isLoading || isSearching || entriesLimit >= 200}
+            className="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-md font-semibold disabled:bg-gray-900 disabled:text-gray-500"
+          >
+            Load more
+          </button>
         </div>
       </div>
 
