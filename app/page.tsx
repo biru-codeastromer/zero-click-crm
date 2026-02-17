@@ -145,9 +145,10 @@ export default function Home() {
             type="file"
             accept={UI_ALLOWED_EXTENSIONS.join(",")}
             onChange={handleFileChange}
-            className="block w-full text-sm text-gray-400 file:mr-4 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700" />
+            aria-label="Upload audio file"
+            className="block w-full text-sm text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-md file:mr-4 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700" />
           <button onClick={handleUpload} disabled={uploading || !selectedFile}
-            className="px-8 py-3 rounded-full text-lg font-semibold text-white bg-green-600 hover:bg-green-700 transition-all disabled:bg-gray-500 disabled:opacity-70">
+            className="px-8 py-3 rounded-full text-lg font-semibold text-white bg-green-600 hover:bg-green-700 transition-all focus:outline-none focus:ring-2 focus:ring-green-400 disabled:bg-gray-500 disabled:opacity-70">
             {uploading ? "Uploading..." : "🚀 Ingest File"}
           </button>
         </div>
@@ -162,9 +163,15 @@ export default function Home() {
       <div className="w-full max-w-6xl mt-12">
         <h2 className="text-3xl font-semibold mb-4">AI Relationship Search</h2>
         <form onSubmit={handleSearch} className="flex gap-4">
-          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="e.g., deals at risk in last 30 days" className="flex-grow p-4 rounded-md bg-gray-800 text-white border border-gray-700" />
-          <button type="submit" disabled={isSearching} className="px-8 py-4 bg-purple-600 hover:bg-purple-700 rounded-md font-semibold disabled:bg-gray-500">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="e.g., deals at risk in last 30 days"
+            aria-label="CRM search query"
+            className="flex-grow p-4 rounded-md bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+          <button type="submit" disabled={isSearching} className="px-8 py-4 bg-purple-600 hover:bg-purple-700 rounded-md font-semibold focus:outline-none focus:ring-2 focus:ring-purple-400 disabled:bg-gray-500">
             {isSearching ? "Searching..." : "Search"}
           </button>
           <button
@@ -175,7 +182,7 @@ export default function Home() {
               fetchEntries(true);
             }}
             disabled={!searchQuery.trim() || isSearching}
-            className="px-6 py-4 bg-gray-700 hover:bg-gray-600 rounded-md font-semibold disabled:bg-gray-800 disabled:text-gray-500"
+            className="px-6 py-4 bg-gray-700 hover:bg-gray-600 rounded-md font-semibold focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:bg-gray-800 disabled:text-gray-500"
           >
             Clear
           </button>
@@ -183,7 +190,7 @@ export default function Home() {
             type="button"
             onClick={() => fetchEntries(true)}
             disabled={isLoading || isSearching}
-            className="px-8 py-4 bg-gray-600 hover:bg-gray-700 rounded-md font-semibold disabled:bg-gray-800 disabled:text-gray-500"
+            className="px-8 py-4 bg-gray-600 hover:bg-gray-700 rounded-md font-semibold focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:bg-gray-800 disabled:text-gray-500"
           >
             Refresh
           </button>
@@ -270,7 +277,7 @@ export default function Home() {
             type="button"
             onClick={() => setEntriesLimit((v) => Math.min(200, v + 50))}
             disabled={isLoading || isSearching || entriesLimit >= 200}
-            className="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-md font-semibold disabled:bg-gray-900 disabled:text-gray-500"
+            className="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-md font-semibold focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:bg-gray-900 disabled:text-gray-500"
           >
             Load more
           </button>
