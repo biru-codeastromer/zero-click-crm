@@ -6,6 +6,16 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Zero-Click CRM | Hack-Nation",
   description: "Enterprise-Grade AI CRM with Vertex AI, Speech-to-Text, and BigQuery",
+  openGraph: {
+    title: "Zero-Click CRM",
+    description: "AI voice ingestion → structured CRM entries in BigQuery, plus natural-language search.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Zero-Click CRM",
+    description: "AI voice ingestion → structured CRM entries in BigQuery, plus natural-language search.",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
