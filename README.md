@@ -5,6 +5,20 @@ This is an enterprise-grade, scalable prototype that rethinks the CRM from the g
 
 **Live Demo URL:** [https://zero-click-crm.vercel.app/]
 
+## Setup (Local Dev)
+
+1. Install dependencies:
+   - `npm install`
+2. Configure environment:
+   - Copy `.env.example` → `.env.local`
+   - Fill in `GCP_PROJECT_ID`, `GCS_UPLOAD_BUCKET`, `BQ_*`, `VERTEX_*`
+   - Provide credentials via either `GOOGLE_APPLICATION_CREDENTIALS_JSON` (preferred) or `GOOGLE_APPLICATION_CREDENTIALS` (local path)
+3. Run the app:
+   - `npm run dev`
+4. Deploy:
+   - Frontend can deploy to Vercel.
+   - `functions-backend` can deploy as a Google Cloud Function (GCS-triggered).
+
 ### The "Enterprise-Grade" Hero Flow
 
 This is a true "Zero-Click" system. The user's *only* job is to save their audio files. Our system does the rest.
