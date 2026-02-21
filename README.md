@@ -19,6 +19,20 @@ This is an enterprise-grade, scalable prototype that rethinks the CRM from the g
    - Frontend can deploy to Vercel.
    - `functions-backend` can deploy as a Google Cloud Function (GCS-triggered).
 
+## Architecture (Upload → BigQuery)
+
+```mermaid
+flowchart LR
+  UI["Next.js UI (file upload)"] -->|signed URL| GCS["GCS Bucket (audio uploads)"]
+  GCS -->|object finalized event| CF["Cloud Function (functions-backend)"]
+  CF --> STT["Speech-to-Text"]
+  CF -->|transcript| Gemini["Vertex AI (Gemini)"]
+  CF -->|structured row| BQ["BigQuery table (CRM entries)"]
+  UI -->|refresh/search| API["Next.js API routes"]
+  API --> BQ
+  API --> Gemini
+```
+
 ### The "Enterprise-Grade" Hero Flow
 
 This is a true "Zero-Click" system. The user's *only* job is to save their audio files. Our system does the rest.
