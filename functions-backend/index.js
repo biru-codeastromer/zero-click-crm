@@ -4,11 +4,11 @@ const { VertexAI } = require('@google-cloud/vertexai');
 const { BigQuery } = require('@google-cloud/bigquery');
 const { Storage } = require('@google-cloud/storage');
 
-const PROJECT_ID = "gen-lang-client-0419608159";
-const LOCATION = "asia-south1";
-const MODEL_NAME = "gemini-2.5-flash";
-const DATASET_ID = "zero_click_crm_dataset";
-const TABLE_ID = "contacts";
+const PROJECT_ID = process.env.GCP_PROJECT_ID || "gen-lang-client-0419608159";
+const LOCATION = process.env.VERTEX_LOCATION || process.env.BQ_LOCATION || "asia-south1";
+const MODEL_NAME = process.env.VERTEX_MODEL || "gemini-2.5-flash";
+const DATASET_ID = process.env.BQ_DATASET || "zero_click_crm_dataset";
+const TABLE_ID = process.env.BQ_TABLE || "contacts";
 
 const speechClient = new SpeechClient({ projectId: PROJECT_ID });
 const vertex_ai = new VertexAI({ project: PROJECT_ID, location: LOCATION });
@@ -47,6 +47,7 @@ functions.cloudEvent('processAudio', async (cloudEvent) => {
     let encoding = undefined;
     if (lower.endsWith(".wav")) encoding = "LINEAR16";
     else if (lower.endsWith(".mp3")) encoding = "MP3";
+    else if (lower.endsWith(".m4a") || lower.endsWith(".mp4")) encoding = undefined; // let API try to auto-detect
     else if (lower.endsWith(".ogg")) encoding = "OGG_OPUS";
     else if (lower.endsWith(".webm")) encoding = "WEBM_OPUS";
     else throw new Error(`Unsupported audio type: ${fileName}`);
@@ -55,7 +56,7 @@ functions.cloudEvent('processAudio', async (cloudEvent) => {
     const [operation] = await speechClient.longRunningRecognize({
       audio: { uri: gcsUri },
       config: {
-        encoding,
+        ...(encoding ? { encoding } : {}),
         // safe when your file is 16k mono; omit if unsure
         sampleRateHertz: encoding === "LINEAR16" ? 16000 : undefined,
         languageCode: 'en-US',
