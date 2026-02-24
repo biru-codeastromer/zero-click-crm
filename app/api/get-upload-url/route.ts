@@ -4,6 +4,7 @@ import crypto from "crypto";
 
 import { getGcpProjectId, getGcsUploadBucket, loadGcpCredentials } from "@/app/lib/gcp";
 import { ALLOWED_AUDIO_MIME_TYPES, MAX_UPLOAD_BYTES } from "@/app/lib/upload";
+import { jsonError } from "@/app/lib/api";
 
 const projectId = getGcpProjectId();
 const bucketName = getGcsUploadBucket();
@@ -17,10 +18,10 @@ export async function POST(request: Request) {
       typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
 
     if (typeof fileType !== "string" || !ALLOWED_AUDIO_MIME_TYPES.has(fileType))
-      return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
+      return jsonError(400, "Unsupported file type");
 
     if (typeof fileSize === "number" && fileSize > MAX_UPLOAD_BYTES) {
-      return NextResponse.json({ error: "File too large" }, { status: 400 });
+      return jsonError(400, "File too large");
     }
 
     const date = new Date();
@@ -44,9 +45,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ url, objectKey, maxBytes: MAX_UPLOAD_BYTES });
   } catch (error: any) {
     console.error("Error creating signed URL:", error);
-    return NextResponse.json(
-      { error: "Failed to create signed URL", details: error?.message ?? "Unknown error" },
-      { status: 500 }
-    );
+    return jsonError(500, "Failed to create signed URL", error?.message ?? "Unknown error");
   }
 }
