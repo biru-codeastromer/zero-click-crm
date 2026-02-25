@@ -1,6 +1,7 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { NextResponse } from "next/server";
 import { getBigQueryConfig, loadGcpCredentials } from "@/app/lib/gcp";
+import { jsonError } from "@/app/lib/api";
 
 const { projectId, location, dataset, table } = getBigQueryConfig();
 const credentials = loadGcpCredentials();
@@ -22,9 +23,6 @@ export async function GET(request: Request) {
     return NextResponse.json(rows);
   } catch (error: any) {
     console.error("Error fetching from BigQuery:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch entries", details: error?.message ?? "Unknown error" },
-      { status: 500 }
-    );
+    return jsonError(500, "Failed to fetch entries", error?.message ?? "Unknown error");
   }
 }
