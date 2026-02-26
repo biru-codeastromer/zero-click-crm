@@ -2,6 +2,7 @@ import { VertexAI } from "@google-cloud/vertexai";
 import { BigQuery } from "@google-cloud/bigquery";
 import { NextResponse } from "next/server";
 import { getBigQueryConfig, getVertexConfig, loadGcpCredentials } from "@/app/lib/gcp";
+import { jsonError } from "@/app/lib/api";
 
 const { projectId, location: bqLocation, dataset, table } = getBigQueryConfig();
 const vertex = getVertexConfig();
@@ -149,8 +150,8 @@ export async function POST(request: Request) {
       ? (body as any).query
       : "";
   const trimmed = query.trim();
-  if (!trimmed) return NextResponse.json({ error: "Missing search query" }, { status: 400 });
-  if (trimmed.length > 500) return NextResponse.json({ error: "Query too long" }, { status: 400 });
+  if (!trimmed) return jsonError(400, "Missing search query");
+  if (trimmed.length > 500) return jsonError(400, "Query too long");
 
   try {
     const req = {
@@ -165,7 +166,7 @@ export async function POST(request: Request) {
     const safe = enforceSafeSql(sql);
     if (!safe.ok) {
       if (process.env.DEBUG_SQL === "1") console.error("Rejected SQL:", { raw, sql, reason: safe.error });
-      return NextResponse.json({ error: safe.error }, { status: 400 });
+      return jsonError(400, safe.error);
     }
     if (process.env.DEBUG_SQL === "1") console.log("Executing SQL:", safe.sql);
 
@@ -173,9 +174,6 @@ export async function POST(request: Request) {
     return NextResponse.json(rows);
   } catch (error: any) {
     console.error("AI Search error:", error);
-    return NextResponse.json(
-      { error: "Failed to process AI search", details: error?.message ?? "Unknown error" },
-      { status: 500 }
-    );
+    return jsonError(500, "Failed to process AI search", error?.message ?? "Unknown error");
   }
 }
