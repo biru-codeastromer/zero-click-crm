@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { CrmEntry } from "@/app/lib/types";
 import { ALLOWED_AUDIO_MIME_TYPES, MAX_UPLOAD_BYTES, UI_ALLOWED_EXTENSIONS } from "@/app/lib/upload";
 import { formatIsoDate, formatMoneyUsd, formatText, formatTimestamp } from "@/app/lib/format";
@@ -16,7 +16,7 @@ export default function Home() {
   const [detailEntry, setDetailEntry] = useState<CrmEntry | null>(null);
   const [entriesLimit, setEntriesLimit] = useState(50);
 
-  const fetchEntries = async (isRefreshing = false) => {
+  const fetchEntries = useCallback(async (isRefreshing = false) => {
     if (!isRefreshing) setIsLoading(true);
     try {
       const response = await fetch(`/api/get-entries?limit=${entriesLimit}`);
@@ -30,37 +30,38 @@ export default function Home() {
     } finally {
       if (!isRefreshing) setIsLoading(false);
     }
-  };
+  }, [entriesLimit]);
 
-  useEffect(() => { fetchEntries(); }, [entriesLimit]);
+  useEffect(() => { fetchEntries(); }, [fetchEntries]);
+
+  const runSearch = useCallback(async (trimmed: string) => {
+    setIsSearching(true);
+    setStatus(null);
+    try {
+      const res = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: trimmed })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.details || json.error || "Search failed");
+      setCrmEntries(json);
+    } catch (e) {
+      console.error(e);
+      setStatus(`Search error: ${String(e)}`);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
 
   useEffect(() => {
     const trimmed = searchQuery.trim();
     if (!trimmed) return;
     const t = window.setTimeout(() => {
-      void (async () => {
-        setIsSearching(true);
-        setStatus(null);
-        try {
-          const res = await fetch("/api/search", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query: trimmed })
-          });
-          const json = await res.json();
-          if (!res.ok) throw new Error(json.details || json.error || "Search failed");
-          setCrmEntries(json);
-        } catch (e) {
-          console.error(e);
-          setStatus(`Search error: ${String(e)}`);
-        } finally {
-          setIsSearching(false);
-        }
-      })();
+      void runSearch(trimmed);
     }, 500);
     return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery]);
+  }, [runSearch, searchQuery]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) setSelectedFile(e.target.files[0]);
@@ -113,22 +114,7 @@ export default function Home() {
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) { fetchEntries(); return; }
-    setIsSearching(true);
-    try {
-      const res = await fetch("/api/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: searchQuery })
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.details || json.error || "Search failed");
-      setCrmEntries(json);
-    } catch (e) {
-      console.error(e);
-      setStatus(`Search error: ${String(e)}`);
-    } finally {
-      setIsSearching(false);
-    }
+    await runSearch(searchQuery.trim());
   };
 
   return (
