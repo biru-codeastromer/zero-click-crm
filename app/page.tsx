@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { CrmEntry } from "@/app/lib/types";
 import { ALLOWED_AUDIO_MIME_TYPES, MAX_UPLOAD_BYTES, UI_ALLOWED_EXTENSIONS } from "@/app/lib/upload";
 import { formatIsoDate, formatMoneyUsd, formatText, formatTimestamp } from "@/app/lib/format";
+import { Spinner } from "@/app/components/Spinner";
 
 export default function Home() {
   const [isSearching, setIsSearching] = useState(false);
@@ -158,7 +159,7 @@ export default function Home() {
             className="flex-grow p-4 rounded-md bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
           />
           <button type="submit" disabled={isSearching} className="px-8 py-4 bg-purple-600 hover:bg-purple-700 rounded-md font-semibold focus:outline-none focus:ring-2 focus:ring-purple-400 disabled:bg-gray-500">
-            {isSearching ? "Searching..." : "Search"}
+            {isSearching ? <Spinner label="Searching" /> : "Search"}
           </button>
           <button
             type="button"
@@ -207,7 +208,7 @@ export default function Home() {
             <tbody className="divide-y divide-gray-700">
               {isLoading && (
                 <tr><td colSpan={8} className="px-6 py-12 text-center text-gray-500">
-                  Loading data from Google BigQuery...
+                  <Spinner label="Loading from BigQuery" />
                 </td></tr>
               )}
               {!isLoading && crmEntries.length === 0 && (
