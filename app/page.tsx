@@ -144,6 +144,9 @@ export default function Home() {
             Selected: <span className="font-medium">{selectedFile.name}</span> ({Math.ceil(selectedFile.size / 1024 / 1024)}MB)
           </p>
         )}
+        {!selectedFile && !uploading && (
+          <p className="mt-3 text-sm text-gray-400">No upload selected.</p>
+        )}
         {status && <p className="mt-3 text-sm text-gray-300">{status}</p>}
       </div>
 
