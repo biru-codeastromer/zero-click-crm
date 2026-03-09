@@ -16,6 +16,7 @@ export default function Home() {
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [detailEntry, setDetailEntry] = useState<CrmEntry | null>(null);
   const [entriesLimit, setEntriesLimit] = useState(50);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const fetchEntries = useCallback(async (isRefreshing = false) => {
     if (!isRefreshing) setIsLoading(true);
@@ -83,6 +84,7 @@ export default function Home() {
     }
 
     setUploading(true);
+    setUploadProgress(0);
     try {
       const res = await fetch("/api/get-upload-url", {
         method: "POST",
@@ -92,12 +94,21 @@ export default function Home() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.details || json.error || "Failed to get upload URL");
 
-      const putRes = await fetch(json.url, {
-        method: "PUT",
-        headers: { "Content-Type": selectedFile.type },
-        body: selectedFile
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", json.url);
+        xhr.setRequestHeader("Content-Type", selectedFile.type);
+        xhr.upload.onprogress = (evt) => {
+          if (!evt.lengthComputable) return;
+          setUploadProgress(Math.round((evt.loaded / evt.total) * 100));
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) return resolve();
+          reject(new Error(`Signed upload failed (HTTP ${xhr.status})`));
+        };
+        xhr.onerror = () => reject(new Error("Signed upload failed (network error)"));
+        xhr.send(selectedFile);
       });
-      if (!putRes.ok) throw new Error(`Signed upload failed (HTTP ${putRes.status})`);
 
       setStatus("Uploaded. The AI pipeline is processing it; refresh in a few seconds.");
       setSelectedFile(null);
@@ -109,6 +120,7 @@ export default function Home() {
       setStatus(`Upload error: ${String(e)}`);
     } finally {
       setUploading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -146,6 +158,14 @@ export default function Home() {
         )}
         {!selectedFile && !uploading && (
           <p className="mt-3 text-sm text-gray-400">No upload selected.</p>
+        )}
+        {uploading && uploadProgress !== null && (
+          <div className="mt-3">
+            <div className="h-2 w-full bg-gray-700 rounded-full overflow-hidden">
+              <div className="h-full bg-green-600" style={{ width: `${uploadProgress}%` }} />
+            </div>
+            <p className="mt-1 text-xs text-gray-400">{uploadProgress}%</p>
+          </div>
         )}
         {status && <p className="mt-3 text-sm text-gray-300">{status}</p>}
       </div>
