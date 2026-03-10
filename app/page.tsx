@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CrmEntry } from "@/app/lib/types";
 import { ALLOWED_AUDIO_MIME_TYPES, MAX_UPLOAD_BYTES, UI_ALLOWED_EXTENSIONS } from "@/app/lib/upload";
 import { formatIsoDate, formatMoneyUsd, formatText, formatTimestamp } from "@/app/lib/format";
@@ -17,6 +17,24 @@ export default function Home() {
   const [detailEntry, setDetailEntry] = useState<CrmEntry | null>(null);
   const [entriesLimit, setEntriesLimit] = useState(50);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [sortKey, setSortKey] = useState<keyof CrmEntry>("created_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const sortedEntries = useMemo(() => {
+    const entries = [...crmEntries];
+    const dir = sortDir === "asc" ? 1 : -1;
+    entries.sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      if (av === bv) return 0;
+      if (av === null) return 1;
+      if (bv === null) return -1;
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+      if (typeof av === "boolean" && typeof bv === "boolean") return (Number(av) - Number(bv)) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+    return entries;
+  }, [crmEntries, sortDir, sortKey]);
 
   const fetchEntries = useCallback(async (isRefreshing = false) => {
     if (!isRefreshing) setIsLoading(true);
@@ -239,7 +257,7 @@ export default function Home() {
                   {searchQuery ? "No entries match your search." : "Upload an audio file to begin."}
                 </td></tr>
               )}
-              {!isLoading && crmEntries.map((entry, i) => (
+              {!isLoading && sortedEntries.map((entry, i) => (
                 <tr
                   key={`${entry.created_at ?? ""}::${entry.contact_name ?? ""}::${entry.company_name ?? ""}::${i}`}
                   className="hover:bg-gray-700 cursor-pointer"
