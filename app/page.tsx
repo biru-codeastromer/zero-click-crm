@@ -36,6 +36,19 @@ export default function Home() {
     return entries;
   }, [crmEntries, sortDir, sortKey]);
 
+  const toggleSort = (key: keyof CrmEntry) => {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  const sortIndicator = (key: keyof CrmEntry) => {
+    if (sortKey !== key) return null;
+    return <span className="ml-2 text-xs">{sortDir === "asc" ? "▲" : "▼"}</span>;
+  };
+
   const fetchEntries = useCallback(async (isRefreshing = false) => {
     if (!isRefreshing) setIsLoading(true);
     try {
@@ -236,14 +249,42 @@ export default function Home() {
           <table className="w-full min-w-full text-left bg-gray-800">
             <thead className="bg-gray-700 text-gray-300 uppercase text-sm">
               <tr>
-                <th className="px-6 py-3">Contact</th>
-                <th className="px-6 py-3">Company</th>
-                <th className="px-6 py-3">Deal Value (USD)</th>
-                <th className="px-6 py-3">Sentiment</th>
+                <th className="px-6 py-3">
+                  <button type="button" className="hover:text-white" onClick={() => toggleSort("contact_name")}>
+                    Contact{sortIndicator("contact_name")}
+                  </button>
+                </th>
+                <th className="px-6 py-3">
+                  <button type="button" className="hover:text-white" onClick={() => toggleSort("company_name")}>
+                    Company{sortIndicator("company_name")}
+                  </button>
+                </th>
+                <th className="px-6 py-3">
+                  <button type="button" className="hover:text-white" onClick={() => toggleSort("deal_value_usd")}>
+                    Deal Value (USD){sortIndicator("deal_value_usd")}
+                  </button>
+                </th>
+                <th className="px-6 py-3">
+                  <button type="button" className="hover:text-white" onClick={() => toggleSort("sentiment")}>
+                    Sentiment{sortIndicator("sentiment")}
+                  </button>
+                </th>
                 <th className="px-6 py-3">Next Step</th>
-                <th className="px-6 py-3">Follow Up</th>
-                <th className="px-6 py-3">At Risk?</th>
-                <th className="px-6 py-3">Created At</th>
+                <th className="px-6 py-3">
+                  <button type="button" className="hover:text-white" onClick={() => toggleSort("follow_up_date")}>
+                    Follow Up{sortIndicator("follow_up_date")}
+                  </button>
+                </th>
+                <th className="px-6 py-3">
+                  <button type="button" className="hover:text-white" onClick={() => toggleSort("at_risk")}>
+                    At Risk?{sortIndicator("at_risk")}
+                  </button>
+                </th>
+                <th className="px-6 py-3">
+                  <button type="button" className="hover:text-white" onClick={() => toggleSort("created_at")}>
+                    Created At{sortIndicator("created_at")}
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
