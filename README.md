@@ -34,6 +34,11 @@ flowchart LR
   API --> Gemini
 ```
 
+## Reliability Notes
+
+- Configure Cloud Function retries and a dead-letter topic/queue for failures.
+- Log sampling can hide errors; use structured logs and alerting for ingestion failures.
+
 ### The "Enterprise-Grade" Hero Flow
 
 This is a true "Zero-Click" system. The user's *only* job is to save their audio files. Our system does the rest.
