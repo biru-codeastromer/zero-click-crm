@@ -39,6 +39,10 @@ flowchart LR
 - Configure Cloud Function retries and a dead-letter topic/queue for failures.
 - Log sampling can hide errors; use structured logs and alerting for ingestion failures.
 
+## Security Notes
+
+See `docs/security.md` for the AI-generated SQL guardrails used by `/api/search`.
+
 ### The "Enterprise-Grade" Hero Flow
 
 This is a true "Zero-Click" system. The user's *only* job is to save their audio files. Our system does the rest.
