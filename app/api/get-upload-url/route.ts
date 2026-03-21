@@ -20,9 +20,10 @@ export async function POST(request: Request) {
     if (typeof fileType !== "string" || !ALLOWED_AUDIO_MIME_TYPES.has(fileType))
       return jsonError(400, "Unsupported file type");
 
-    if (typeof fileSize === "number" && fileSize > MAX_UPLOAD_BYTES) {
-      return jsonError(400, "File too large");
+    if (typeof fileSize !== "number" || !Number.isFinite(fileSize) || fileSize <= 0) {
+      return jsonError(400, "Missing file size");
     }
+    if (fileSize > MAX_UPLOAD_BYTES) return jsonError(400, "File too large");
 
     const date = new Date();
     const prefix = `uploads/${date.getUTCFullYear()}/${(date.getUTCMonth()+1).toString().padStart(2,"0")}/${date.getUTCDate().toString().padStart(2,"0")}`;
