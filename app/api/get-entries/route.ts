@@ -15,7 +15,8 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const limitParam = url.searchParams.get("limit");
-    const limit = Math.max(1, Math.min(200, limitParam ? Number(limitParam) : 50));
+    const parsed = limitParam ? Number(limitParam) : 50;
+    const limit = Number.isFinite(parsed) ? Math.max(1, Math.min(200, parsed)) : 50;
     const [rows] = await bigquery.query({
       query: `SELECT * FROM \`${projectId}.${dataset}.${table}\` ORDER BY created_at DESC LIMIT ${Number.isFinite(limit) ? Math.floor(limit) : 50}`,
       location
