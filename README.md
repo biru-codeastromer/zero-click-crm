@@ -43,6 +43,10 @@ flowchart LR
 
 See `docs/security.md` for the AI-generated SQL guardrails used by `/api/search`.
 
+## Troubleshooting
+
+See `docs/troubleshooting.md`.
+
 ### The "Enterprise-Grade" Hero Flow
 
 This is a true "Zero-Click" system. The user's *only* job is to save their audio files. Our system does the rest.
