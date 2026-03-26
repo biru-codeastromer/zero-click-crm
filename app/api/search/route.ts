@@ -4,10 +4,11 @@ import { NextResponse } from "next/server";
 import { getBigQueryConfig, getVertexConfig, loadGcpCredentials } from "@/app/lib/gcp";
 import { jsonError } from "@/app/lib/api";
 import { cleanSql, enforceSafeSql } from "@/app/lib/sqlGuard";
+import { getCrmTableFqn } from "@/app/lib/bq";
 
-const { projectId, location: bqLocation, dataset, table } = getBigQueryConfig();
+const { projectId, location: bqLocation } = getBigQueryConfig();
 const vertex = getVertexConfig();
-const TABLE_FQN = `\`${projectId}.${dataset}.${table}\``;
+const TABLE_FQN = getCrmTableFqn();
 const credentials = loadGcpCredentials();
 
 const vertex_ai = new VertexAI({
